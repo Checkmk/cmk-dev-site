@@ -477,15 +477,15 @@ def parse_version(
             commit_hash=match.group(2),
         )
 
-    if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+-\d+-\d+)$", version):
+    if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)$", version):
         return VersionWithReleaseDate(
             base_version=BaseVersion.from_str(match.group(1)),
-            release_date=datetime.strptime(match.group(2), "%Y-%m-%d").date(),
+            release_date=datetime.strptime(match.group(2).replace(".", "-"), "%Y-%m-%d").date(),
         )
 
     raise argparse.ArgumentTypeError(
-        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0-YYYY-MM-DD|2.2|2.2.0-daily|"
-        "git:<branch>:<commit_hash>'"
+        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0-YYYY-MM-DD|2.2.0-YYYY.MM.DD|"
+        "2.2|2.2.0-daily|git:<branch>:<commit_hash>'"
     )
 
 
