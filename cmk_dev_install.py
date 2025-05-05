@@ -25,13 +25,13 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, Callable, Literal, Optional, ParamSpec, TypeVar
+from typing import Any, ClassVar, Literal, ParamSpec, TypeVar
 
 import requests
 
@@ -49,19 +49,21 @@ T = TypeVar("T")  # Type variable for a generic type
 P = ParamSpec("P")  # Type variable for a function's parameters
 
 
-def log(
-    info_message: Optional[str] = None,
-    error_message: Optional[str] = None,
-    message_info: Optional[Callable[P, str]] = None,
-    prefix: Optional[Callable[P, str]] = None,
+def log(  # noqa: C901
+    info_message: str | None = None,
+    error_message: str | None = None,
+    message_info: Callable[P, str] | None = None,
+    prefix: Callable[P, str] | None = None,
     max_level: int = logging.INFO,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator for logging function calls, handling errors with optional warnings
 
     :param info_message: The message to log before the function call.
     :param error_message: The message to log if the function raises an exception.
-    :param message_info: A function to generate a custom info message based on the function's arguments.
-    :param prefix: A function to generate a custom prefix for the info message based on the function's arguments.
+    :param message_info: A function to generate a custom info message based on the function's
+        arguments.
+    :param prefix: A function to generate a custom prefix for the info message based on the
+        function's arguments.
     :param max_level: maximum logging level to use for logging message.
     """
 
@@ -69,13 +71,13 @@ def log(
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             formated_func_name = func.__name__.replace("_", " ").capitalize()
-            if message_info:
-                msg = message_info(*args, **kwargs)
-            else:
-                msg = info_message or f"{formated_func_name}..."
+            msg = (
+                message_info(*args, **kwargs)
+                if message_info
+                else info_message or f"{formated_func_name}..."
+            )
 
-            if prefix:
-                msg = prefix(*args, **kwargs) + msg
+            msg = f"{prefix(*args, **kwargs) if prefix else ''}{msg}"
 
             # Log function call details
             if logger.isEnabledFor(logging.DEBUG):
@@ -85,9 +87,8 @@ def log(
                     args,
                     kwargs,
                 )
-            else:
-                if max_level >= logging.INFO:
-                    logger.log(PROGRESS_LEVEL, msg)
+            elif max_level >= logging.INFO:
+                logger.log(PROGRESS_LEVEL, msg)
 
             try:
                 result = func(*args, **kwargs)
@@ -105,18 +106,14 @@ def log(
             else:
                 # Log function result details
                 if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(
-                        "%s returned: %s", colorize(func.__name__, "cyan"), result
+                    logger.debug("%s returned: %s", colorize(func.__name__, "cyan"), result)
+                elif max_level >= logging.INFO:
+                    msg = (
+                        f"{msg}{colorize('OK', 'green')}"
+                        if result is None
+                        else f"{msg}-> {colorize(str(result), 'green')}"
                     )
-
-                else:
-                    if max_level >= logging.INFO:
-                        msg = (
-                            f"{msg}{colorize('OK', 'green')}"
-                            if result is None
-                            else f"{msg}-> {colorize(str(result), 'green')}"
-                        )
-                        logger.info("%s", msg)
+                    logger.info("%s", msg)
 
                 return result
 
@@ -141,9 +138,7 @@ class BaseVersion:
             case (major_str, minor_str):
                 return cls(major=int(major_str), minor=int(minor_str))
             case (major_str, minor_str, patch_str):
-                return cls(
-                    major=int(major_str), minor=int(minor_str), patch=int(patch_str)
-                )
+                return cls(major=int(major_str), minor=int(minor_str), patch=int(patch_str))
         raise ValueError("Version must be in 'd.d[.d]' format")
 
     def __str__(self) -> str:
@@ -175,9 +170,7 @@ class PartialVersion(BaseVersion):
 
 
 class VersionWithPatch:
-    def __init__(
-        self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int
-    ):
+    def __init__(self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int):
         self.base_version = base_version
         self.patch_type = patch_type
         self.patch = patch
@@ -213,13 +206,7 @@ class GitVersion:
         return f"git:{self.branch}:{self.commit_hash}"
 
 
-type Version = (
-    BaseVersion
-    | VersionWithPatch
-    | VersionWithReleaseDate
-    | PartialVersion
-    | GitVersion
-)
+type Version = BaseVersion | VersionWithPatch | VersionWithReleaseDate | PartialVersion | GitVersion
 
 
 class Edition(StrEnum):
@@ -302,8 +289,7 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
                 pkg_name,
             ],
             check=True,  # Raises CalledProcessError if the command fails
-            stdout=subprocess.PIPE,  # Captures standard output
-            stderr=subprocess.PIPE,  # Captures standard error
+            capture_output=True,  # Captures stdout and stderr
             text=True,  # Decodes output as text (str)
         )
         logger.debug(result.stdout)
@@ -341,8 +327,7 @@ def install_packet(pkg_path: Path) -> None:
                 str(pkg_path),
             ],
             check=True,  # Raises CalledProcessError if the command fails
-            stdout=subprocess.PIPE,  # Captures standard output
-            stderr=subprocess.PIPE,  # Captures standard error
+            capture_output=True,  # Captures stdout and stderr
             text=True,  # Decodes output as text (str)
         )
         logger.debug(result.stdout)
@@ -372,7 +357,7 @@ class ColoredFormatter(logging.Formatter):
     """Custom log formatter that colorizes log messages based on their level."""
 
     # Define ANSI escape codes for colors
-    COLORS = {
+    COLORS: ClassVar = {
         logging.DEBUG: "blue",  # Blue
         logging.INFO: "green",  # Green
         logging.WARNING: "yellow",  # Yellow
@@ -419,9 +404,7 @@ def setup_logging(verbose: int) -> None:
 
     console_handler = InlineStreamHandler()
 
-    log_level = max(
-        logging.INFO - (verbose * 10), logging.DEBUG
-    )  # Map verbosity to log levels
+    log_level = max(logging.INFO - (verbose * 10), logging.DEBUG)  # Map verbosity to log levels
     logger.setLevel(log_level)
 
     # Use the ColoredFormatter
@@ -434,9 +417,7 @@ def get_user_pass() -> tuple[str, str]:
     """Get the user and password from the credentials file"""
 
     try:
-        user, password = (
-            CREDENTIALS_FILE.read_text(encoding="utf-8").strip().split(":", 1)
-        )
+        user, password = CREDENTIALS_FILE.read_text(encoding="utf-8").strip().split(":", 1)
         return (user, password)
     except Exception as e:
         raise RuntimeError(
@@ -503,7 +484,8 @@ def parse_version(
         )
 
     raise argparse.ArgumentTypeError(
-        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0-YYYY-MM-DD|2.2|2.2.0-daily|git:<branch>:<commit_hash>'"
+        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0-YYYY-MM-DD|2.2|2.2.0-daily|"
+        "git:<branch>:<commit_hash>'"
     )
 
 
@@ -607,21 +589,13 @@ class FileServer:
     def list_versions_with_date(
         self, url: str, base_version: BaseVersion
     ) -> list[VersionWithReleaseDate]:
-        return [
-            vs
-            for vs in self._query_available_versions(url)
-            if vs.base_version == base_version
-        ]
+        return [vs for vs in self._query_available_versions(url) if vs.base_version == base_version]
 
     @log()
     def query_latest_base_version(self, *urls: str) -> BaseVersion:
         # if we have no version *at all*, this raises.
         return max(
-            (
-                v.base_version
-                for url in urls
-                for v in self._query_available_versions(url)
-            ),
+            (v.base_version for url in urls for v in self._query_available_versions(url)),
         )
 
     @log()
@@ -650,11 +624,7 @@ class VersionParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_dict = dict(attrs)
 
-        if (
-            tag == "a"
-            and (href := attrs_dict.get("href"))
-            and (match := self._pattern.match(href))
-        ):
+        if tag == "a" and (href := attrs_dict.get("href")) and (match := self._pattern.match(href)):
             self._versions.append(
                 VersionWithReleaseDate(
                     base_version=BaseVersion.from_str(match.group(1)),
@@ -671,19 +641,16 @@ def validate_jenkins_jobs_ini() -> bool:
 
     if not CONFIG_PATH.exists():
         this_user_name = (
-            subprocess.check_output(["git", "config", "user.email"])
-            .decode()
-            .strip()
-            .split("@")[0]
+            subprocess.check_output(["git", "config", "user.email"]).decode().strip().split("@")[0]
         )
         config_content = f"""
-In order to interact with Jenkins you need to have a file at "~/.config/jenkins_jobs/jenkins_jobs.ini" containing
-the following content
+In order to interact with Jenkins you need to have a file at
+"~/.config/jenkins_jobs/jenkins_jobs.ini" containing the following content
 
 # start of file
 [jenkins]
 user={this_user_name}
-# Get the APIKEY from the CI web UI, click top right Profile -> Security -> Add new Token 
+# Get the APIKEY from the CI web UI, click top right Profile -> Security -> Add new Token
 # https://ci.lan.tribe29.com/user/{this_user_name}/security
 password=API_KEY_NOT_YOUR_PASSWORD
 url=https://ci.lan.tribe29.com
@@ -704,9 +671,7 @@ class ArtifactsResult:
 
 
 @log()
-def build_install_git_version(
-    branch: str, commit_hash: str, edition: Edition, distro_id
-) -> Path:
+def build_install_git_version(branch: str, commit_hash: str, edition: Edition, distro_id) -> Path:
     """
     Build and install a version from a specific branch and commit hash.
 
@@ -767,9 +732,7 @@ def find_last_release(
     """
     url_version_date = [
         (CMK_DOWNLOAD_URL, v_date)
-        for v_date in file_server.list_versions_with_date(
-            CMK_DOWNLOAD_URL, base_version
-        )
+        for v_date in file_server.list_versions_with_date(CMK_DOWNLOAD_URL, base_version)
     ] + [
         (TSBUILD_URL, v_date)
         for v_date in file_server.list_versions_with_date(TSBUILD_URL, base_version)
@@ -893,13 +856,13 @@ def setup_parser() -> argparse.ArgumentParser:
         help=f"""specify the version in one of the following formats:
 
   {colorize("2.4.0-daily", "green")}: install today's daily version
-  {colorize("2.4", "green")}: install the latest available daily build 
+  {colorize("2.4", "green")}: install the latest available daily build
   {colorize("2.4.0-2025-01-01", "green")}: install specific daily version
   {colorize("2.4.0p23", "green")}: install released patch version
   {colorize("git:master:39f57c98f92", "green")}: Build and install from a specific
     branch and commit
 
-Per default it will try to install the daily version of the 
+Per default it will try to install the daily version of the
 latest branch that can be found.
 """,
     )
@@ -943,9 +906,7 @@ latest branch that can be found.
 
 
 @log(max_level=logging.DEBUG)
-def validate_installation(
-    cmk_pkg: CMKPackage, force: bool, download_only: bool
-) -> bool:
+def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool) -> bool:
     """
     Validate if the instllation should go through.
     """
@@ -966,9 +927,9 @@ def validate_installation(
             f"Found sites existed with the version {cmk_pkg.omd_version}: {existed_sitenames}\n"
             "Please remove the site, before reinstalling using:\n"
             f"""{
-                '\n'.join(
+                "\n".join(
                     [
-                        f'sudo omd -f rm --kill --apache-reload {sitename}'
+                        f"sudo omd -f rm --kill --apache-reload {sitename}"
                         for sitename in existed_sitenames
                     ]
                 )
@@ -1020,21 +981,15 @@ def core_logic(
 
     match version:
         case GitVersion(branch=branch, commit_hash=commit_hash):
-            pkg_path = build_install_git_version(
-                branch, commit_hash, edition, distro.version_id
-            )
+            pkg_path = build_install_git_version(branch, commit_hash, edition, distro.version_id)
             install_packet(pkg_path)
             # default version will point to the latest installed version
             # we don't have to figure out which git version we just installed
             installed_version = get_default_version()
 
         case PartialVersion():
-            cmk_pkg = find_last_release(
-                file_server, version, edition, distro.version_codename
-            )
-            cmk_pkg = download_and_install_cmk_pkg(
-                file_server, cmk_pkg, force, download_only
-            )
+            cmk_pkg = find_last_release(file_server, version, edition, distro.version_codename)
+            cmk_pkg = download_and_install_cmk_pkg(file_server, cmk_pkg, force, download_only)
             pkg_path = cmk_pkg.download_path
             installed_version = cmk_pkg.omd_version
         case _:
@@ -1055,9 +1010,7 @@ def core_logic(
                     f"Version {version} not found in the download server. Trying tstbuilds server."
                 )
                 cmk_pkg.base_url = TSBUILD_URL
-            cmk_pkg = download_and_install_cmk_pkg(
-                file_server, cmk_pkg, force, download_only
-            )
+            cmk_pkg = download_and_install_cmk_pkg(file_server, cmk_pkg, force, download_only)
             pkg_path = cmk_pkg.download_path
             installed_version = cmk_pkg.omd_version
 
