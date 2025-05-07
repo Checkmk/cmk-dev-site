@@ -17,23 +17,21 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    Dict,
-    List,
+    ClassVar,
     Literal,
     NotRequired,
-    Optional,
     ParamSpec,
     Self,
+    TextIO,
     TypedDict,
     TypeVar,
-    cast,
 )
 
 try:
@@ -41,7 +39,8 @@ try:
     from requests.exceptions import JSONDecodeError
 except ImportError:
     raise ImportError(
-        "The 'requests' library is not installed. Please install it using 'apt install python3-requests'."
+        "The 'requests' library is not installed."
+        "Please install it using 'apt install python3-requests'."
     )
 
 
@@ -54,18 +53,18 @@ P = ParamSpec("P")  # Type variable for a function's parameters
 
 
 def log(
-    info_message: Optional[str] = None,
-    error_message: Optional[str] = None,
-    message_info: Optional[Callable[P, str]] = None,
-    prefix: Optional[Callable[P, str]] = None,
+    info_message: str | None = None,
+    error_message: str | None = None,
+    message_info: Callable[P, str] | None = None,
+    prefix: Callable[P, str] | None = None,
     max_level: int = logging.INFO,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator for logging function calls, handling errors with optional warnings
 
     :param info_message: The message to log before the function call.
     :param error_message: The message to log if the function raises an exception.
-    :param message_info: A function to generate a custom info message based on the function's arguments.
-    :param prefix: A function to generate a custom prefix for the info message based on the function's arguments.
+    :param message_info: generate a custom info message based on the function's arguments.
+    :param prefix: generate a custom prefix for the info message based on the function's arguments.
     :param max_level: maximum logging level to use for logging message.
     """
 
@@ -109,9 +108,7 @@ def log(
             else:
                 # Log function result details
                 if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug(
-                        "%s returned: %s", colorize(func.__name__, "cyan"), result
-                    )
+                    logger.debug("%s returned: %s", colorize(func.__name__, "cyan"), result)
 
                 else:
                     if max_level >= logging.INFO:
@@ -165,15 +162,14 @@ class BaseVersion:
             case (major_str, minor_str):
                 return cls(major=int(major_str), minor=int(minor_str))
             case (major_str, minor_str, patch_str):
-                return cls(
-                    major=int(major_str), minor=int(minor_str), patch=int(patch_str)
-                )
-        raise ValueError("Version must be in 'd.d[.d]' format")
+                return cls(major=int(major_str), minor=int(minor_str), patch=int(patch_str))
+            case _:
+                raise ValueError("Version must be in 'd.d[.d]' format")
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         if isinstance(other, BaseVersion):
             return (self.major, self.minor, self.patch) == (
                 other.major,
@@ -182,7 +178,7 @@ class BaseVersion:
             )
         return NotImplemented
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any):
         if isinstance(other, BaseVersion):
             return (self.major, self.minor, self.patch) < (
                 other.major,
@@ -193,9 +189,7 @@ class BaseVersion:
 
 
 class VersionWithPatch(BaseVersion):
-    def __init__(
-        self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int
-    ):
+    def __init__(self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int):
         self.base_version = base_version
         self.patch_type = patch_type
         self.patch = patch
@@ -551,9 +545,7 @@ class Site:
             },
         }
         if message_broker_port:
-            config["configuration_connection"]["message_broker_port"] = (
-                message_broker_port
-            )
+            config["configuration_connection"]["message_broker_port"] = message_broker_port
 
         if self.cmk_pkg.edition == Edition.MANAGED:
             # required filed for managed edition
@@ -573,12 +565,11 @@ class Site:
 
                 if process.returncode != 0:
                     raise RuntimeError(
-                        f"Failed to append to {file_path}. "
-                        f"Error: {stderr.decode().strip()}"
+                        f"Failed to append to {file_path}. Error: {stderr.decode().strip()}"
                     )
 
         except (OSError, subprocess.SubprocessError) as e:
-            raise RuntimeError(f"File append operation failed: {str(e)}") from e
+            raise RuntimeError(f"File append operation failed: {e!s}") from e
         except UnicodeEncodeError as e:
             raise RuntimeError("Invalid content encoding") from e
 
@@ -590,9 +581,7 @@ class Site:
             self.name,
             "etc/check_mk/multisite.d/wato/ca-certificates.mk",
         )
-        ssl_certificates_path = Path(
-            "/omd/sites", self.name, "var/ssl/ca-certificates.crt"
-        )
+        ssl_certificates_path = Path("/omd/sites", self.name, "var/ssl/ca-certificates.crt")
 
         cmd = [
             "sudo",
@@ -614,9 +603,7 @@ class Site:
                 capture_output=True,
             ).stdout
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Failed to fetch DER certificate from {remote_site_name}"
-            ) from e
+            raise RuntimeError(f"Failed to fetch DER certificate from {remote_site_name}") from e
 
         try:
             cert_pem = subprocess.run(
@@ -635,15 +622,16 @@ class Site:
 
         # Format certificate to be inserted as a single line
         cert_escaped = cert_pem.strip().replace("\n", "\\n")
-        trust_entry = f'trusted_certificate_authorities.setdefault("trusted_cas", []).append("{cert_escaped}")\n'
+        trust_entry = (
+            "trusted_certificate_authorities.setdefault"
+            f'("trusted_cas", []).append("{cert_escaped}")\n'
+        )
 
         # Append certificate trust entry to configuration file
         self._append_to_file(ca_certificates_path, trust_entry)
 
     @log(prefix=_prefix_log_site)
-    def register_host_with_agent(
-        self, host_name: str, gui_user: str, gui_pw: str
-    ) -> None:
+    def register_host_with_agent(self, host_name: str, gui_user: str, gui_pw: str) -> None:
         # Check if the cmk agent is already installed
         cmk_agent_ctl_path = shutil.which("cmk-agent-ctl")
         if not cmk_agent_ctl_path:
@@ -673,9 +661,7 @@ class Site:
             ]
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                "ERROR: Failed to register host with cmk-agent-ctl. "
-            ) from e
+            raise RuntimeError("ERROR: Failed to register host with cmk-agent-ctl. ") from e
 
 
 def colorize(text: str, color: str) -> str:
@@ -699,7 +685,7 @@ class ColoredFormatter(logging.Formatter):
     """Custom log formatter that colorizes log messages based on their level."""
 
     # Define ANSI escape codes for colors
-    COLORS = {
+    COLORS: ClassVar[Mapping[int, str]] = {
         logging.DEBUG: "blue",
         logging.INFO: "green",
         logging.WARNING: "yellow",
@@ -718,7 +704,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-class InlineStreamHandler(logging.StreamHandler):
+class InlineStreamHandler(logging.StreamHandler[TextIO]):
     """Custom StreamHandler to support inline logging for progress updates."""
 
     def __init__(self):
@@ -826,7 +812,7 @@ class APIClient:
 
         return []
 
-    def get_href_from_links(self, links: List[Dict[str, str]], name: str) -> str:
+    def get_href_from_links(self, links: list[dict[str, str]], name: str) -> str:
         """Extract the href from the links."""
         for link in links:
             if link["rel"] == name:
@@ -898,7 +884,8 @@ class APIClient:
             headers={
                 # (required) The value of the, to be modified, object's ETag header.
                 "If-Match": "*",
-                # (required) A header specifying which type of content is in the request/response body.
+                # (required) A header specifying which type of content
+                # is in the request/response body.
                 "Content-Type": "application/json",
             },
             json={
@@ -913,7 +900,7 @@ class APIClient:
 
             # Extract the link for subsequent calls
 
-            changes = set()
+            changes: set[str] = set()
             # Polling loop
             link = self.get_href_from_links(response.json()["links"], "self")
 
@@ -935,9 +922,7 @@ class APIClient:
                 # Wait before polling again
                 time.sleep(1)
         elif response.status_code == 422:
-            logger.warning(
-                "[%s]: Nothing to activate", colorize(self.site_name, "blue")
-            )
+            logger.warning("[%s]: Nothing to activate", colorize(self.site_name, "blue"))
         else:
             raise_runtime_error(response)
 
@@ -965,9 +950,7 @@ def read_default_version() -> CMKPackage:
 def parse_version(version: str) -> CMKPackage:
     """Parse the version string into a cmk package."""
 
-    if match := re.match(
-        r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)(?:\.(\w{3}))?$", version
-    ):
+    if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)(?:\.(\w{3}))?$", version):
         try:
             return CMKPackage(
                 version=VersionWithReleaseDate(
@@ -994,9 +977,8 @@ def parse_version(version: str) -> CMKPackage:
             raise argparse.ArgumentTypeError(e)
     else:
         raise argparse.ArgumentTypeError(
-            f"'{
-                version
-            }' doesn't match expected format '[<branch>p|b<patch>.<edition>|<branch>-<YYYY.MM.DD>.<edition>]'"
+            f"'{version}' doesn't match expected format"
+            " '[<branch>p|b<patch>.<edition>|<branch>-<YYYY.MM.DD>.<edition>]'"
         )
 
 
@@ -1028,14 +1010,10 @@ class Config:
         """Find the default site name based on the Checkmk version."""
 
         match version:
-            case VersionWithPatch(
-                base_version=base_version, patch_type=patch_type, patch=patch
-            ):
+            case VersionWithPatch(base_version=base_version, patch_type=patch_type, patch=patch):
                 return f"v{str(base_version).replace('.', '')}{patch_type}{patch}"
             case VersionWithReleaseDate(base_version=base_version):
                 return f"v{str(base_version).replace('.', '')}"
-            case _:
-                raise NotImplementedError(f"Invalid version: {version}")
 
 
 class ArgFormatter(argparse.RawTextHelpFormatter):
@@ -1059,7 +1037,8 @@ def setup_parser() -> argparse.ArgumentParser:
         type=parse_version,
         nargs="?",
         help="specify the full omd version\n"
-        f"(default: {colorize('omd version -b', 'blue')}, e.g {colorize('2.4.0-2025.04.07.cce', 'blue')}.)",
+        f"(default: {colorize('omd version -b', 'blue')},"
+        " e.g {colorize('2.4.0-2025.04.07.cce', 'blue')}.)",
     )
 
     parser.add_argument(
@@ -1114,9 +1093,7 @@ def setup_logger(verbose: int) -> None:
     console_handler = InlineStreamHandler()
 
     # default log is verbose, show critical, error, warning, and info messages.
-    log_level = max(
-        logging.INFO - (verbose * 10), logging.DEBUG
-    )  # Map verbosity to log levels
+    log_level = max(logging.INFO - (verbose * 10), logging.DEBUG)  # Map verbosity to log levels
     logger.setLevel(log_level)
 
     # Use the ColoredFormatter
@@ -1282,12 +1259,11 @@ def add_user_to_sudoers() -> None:
         raise RuntimeError("Failed to add user to sudoers") from e
 
 
-@log(
-    message_info=cast(
-        Callable[[CMKPackage], str],
-        lambda pkg: f"Validate installation of {pkg}...",
-    )
-)
+def format_validate_installation(cmk_pkg: CMKPackage) -> str:
+    return f"Validate installation of {cmk_pkg}..."
+
+
+@log(message_info=format_validate_installation)
 def validate_installation(cmk_pkg: CMKPackage) -> None:
     """Validate Checkmk installation with proper error handling."""
     if not cmk_pkg.installed_path.exists():

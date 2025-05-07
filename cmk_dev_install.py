@@ -31,7 +31,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, ClassVar, Literal, ParamSpec, TypeVar
+from typing import Any, ClassVar, Literal, ParamSpec, TextIO, TypeVar
 
 import requests
 
@@ -49,7 +49,7 @@ T = TypeVar("T")  # Type variable for a generic type
 P = ParamSpec("P")  # Type variable for a function's parameters
 
 
-def log(  # noqa: C901
+def log(
     info_message: str | None = None,
     error_message: str | None = None,
     message_info: Callable[P, str] | None = None,
@@ -139,12 +139,13 @@ class BaseVersion:
                 return cls(major=int(major_str), minor=int(minor_str))
             case (major_str, minor_str, patch_str):
                 return cls(major=int(major_str), minor=int(minor_str), patch=int(patch_str))
-        raise ValueError("Version must be in 'd.d[.d]' format")
+            case _:
+                raise ValueError("Version must be in 'd.d[.d]' format")
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
         if isinstance(other, BaseVersion):
             return (self.major, self.minor, self.patch) == (
                 other.major,
@@ -153,7 +154,7 @@ class BaseVersion:
             )
         return NotImplemented
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any):
         if isinstance(other, BaseVersion):
             return (self.major, self.minor, self.patch) < (
                 other.major,
@@ -376,7 +377,7 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-class InlineStreamHandler(logging.StreamHandler):
+class InlineStreamHandler(logging.StreamHandler[TextIO]):
     """Custom StreamHandler to support inline logging for progress updates."""
 
     def __init__(self):
@@ -671,7 +672,9 @@ class ArtifactsResult:
 
 
 @log()
-def build_install_git_version(branch: str, commit_hash: str, edition: Edition, distro_id) -> Path:
+def build_install_git_version(
+    branch: str, commit_hash: str, edition: Edition, distro_id: str
+) -> Path:
     """
     Build and install a version from a specific branch and commit hash.
 
@@ -758,7 +761,7 @@ def find_sitenames_by_version(version: str) -> list[str]:
     """
     Get the list of sitenames that are running by a specific version
     """
-    site_names = []
+    site_names: list[str] = []
     try:
         for path in Path("/omd/sites").glob("*"):
             path = path / "version"
