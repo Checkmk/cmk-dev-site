@@ -992,6 +992,14 @@ def parse_version(version: str) -> CMKPackage:
             )
         except ValueError as e:
             raise argparse.ArgumentTypeError(e)
+    elif match := re.match(r"^(\d+\.\d+\.\d+).(\w{3})$", version):
+        try:
+            return CMKPackage(
+                version=VersionWithPatch(version=match.group(1), type="p", patch=0),
+                edition=Edition(match.group(2)),
+            )
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(e)
     else:
         raise argparse.ArgumentTypeError(
             f"'{
