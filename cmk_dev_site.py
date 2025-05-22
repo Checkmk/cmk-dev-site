@@ -424,69 +424,9 @@ class Site:
                 colorize(self.name, "yellow"),
                 e.stderr,
             )
-        self._configure_tracing()
-
-    @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
-    def _configure_tracing(self) -> None:
-        if (
-            self.cmk_pkg.version.base_version < BaseVersion(2, 4, 0)
-            or self.cmk_pkg.edition == Edition.SAAS
-        ):
-            logger.warning(
-                "[%s]: Tracing is not supported for version: %s",
-                colorize(self.name, "yellow"),
-                colorize(str(self.cmk_pkg.version), "yellow"),
-            )
-            return
-        try:
-            if self.is_remote_site:
-                subprocess.run(
-                    [
-                        "sudo",
-                        "omd",
-                        "config",
-                        self.name,
-                        "set",
-                        "TRACE_SEND_TARGET",
-                        "http://localhost:4321",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-            else:
-                subprocess.run(
-                    ["sudo", "omd", "config", self.name, "set", "TRACE_RECEIVE", "on"],
-                    check=True,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    [
-                        "sudo",
-                        "omd",
-                        "config",
-                        self.name,
-                        "set",
-                        "TRACE_RECEIVE_PORT",
-                        "4321",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-
-            subprocess.run(
-                ["sudo", "omd", "config", self.name, "set", "TRACE_SEND", "on"],
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.warning(
-                "[%s]: Failed to enable site tracing. %s",
-                colorize(self.name, "yellow"),
-                e.stderr,
-            )
 
     @log(prefix=_prefix_log_site)
-    def start_site(self) -> None:
+    def start_site(self, api: "APIClient") -> None:
         try:
             subprocess.run(["sudo", "omd", "start", self.name], check=True)
         except subprocess.CalledProcessError as e:
@@ -495,6 +435,11 @@ class Site:
                 colorize(self.name, "yellow"),
                 e.stderr,
             )
+        logger.debug("Make sure API is available..")
+        while api.version() is None:
+            logger.debug("Waiting for API to be available")
+            time.sleep(1)
+        logger.debug("API is available!")
 
     @log(prefix=_prefix_log_site)
     def trigger_site_checking_cycle(self) -> None:
@@ -686,6 +631,57 @@ class Site:
             raise RuntimeError("ERROR: Failed to register host with cmk-agent-ctl. ") from e
 
 
+def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
+    logger.debug("set omd configuration of site %s: %s => %s", site_name, config_key, config_value)
+    try:
+        subprocess.run(
+            [
+                "sudo",
+                "omd",
+                "config",
+                site_name,
+                "set",
+                config_key,
+                config_value,
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Could not set configuration {config_key} to {config_value} "
+            f"for site {site_name}\n{e.stderr}"
+        ) from e
+
+
+def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
+    # has to be called after the sites have been completely set up, but before starting the sites.
+    port_raw = subprocess.check_output(
+        ["sudo", "omd", "config", central_site.name, "show", "TRACE_RECEIVE_PORT"]
+    )
+    port = int(port_raw.strip())
+
+    # we assume that central_site and remote_sites share the same config and version
+
+    if (
+        central_site.cmk_pkg.version.base_version < BaseVersion(2, 4, 0)
+        or central_site.cmk_pkg.edition == Edition.SAAS
+    ):
+        logger.warning(
+            "[%s]: Tracing is not supported for version: %s",
+            colorize(central_site.name, "yellow"),
+            colorize(str(central_site.cmk_pkg.version), "yellow"),
+        )
+        return
+
+    for remote_site in remote_sites:
+        omd_config_set(remote_site.name, "TRACE_SEND_TARGET", f"http://localhost:{port}")
+        omd_config_set(remote_site.name, "TRACE_SEND", "on")
+
+    omd_config_set(central_site.name, "TRACE_RECEIVE", "on")
+    omd_config_set(central_site.name, "TRACE_SEND", "on")
+
+
 def colorize(text: str, color: str) -> str:
     """Colorize text with ANSI escape codes."""
     colors = {
@@ -778,6 +774,19 @@ class APIClient:
         self.session = requests.session()
         self.session.headers["Authorization"] = f"Bearer {username} {password}"
         self.session.headers["Accept"] = "application/json"
+
+    @log(prefix=_prefix_log_api_client)
+    def version(self) -> dict[str, str] | None:
+        response = self.session.get(
+            f"{self.base_url}/version",
+            headers={
+                "Content-Type": "application/json",
+            },
+        )
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
 
     @log(prefix=_prefix_log_api_client)
     def create_host(
@@ -1237,24 +1246,17 @@ def handle_site_creation(site: Site, force: bool) -> None:
         )
         logger.warning("Use force option to delete the existing site")
 
-    site.start_site()
-
 
 def set_up_distributed_site(
-    number: int,
+    remote_site: Site,
+    remote_api: APIClient,
     central_site: Site,
-    api: APIClient,
+    central_api: APIClient,
     config: Config,
 ) -> None:
     """
     Set up a distributed site.
     """
-    remote_site = Site(f"{central_site.name}_remote_{number}", config.cmk_pkg, is_remote=True)
-
-    handle_site_creation(remote_site, config.force)
-
-    remote_api = APIClient(site_name=remote_site.name)
-
     remote_api.set_user_language(config.language.value)
 
     remote_api.create_host(host_name=remote_site.name)
@@ -1286,7 +1288,7 @@ def set_up_distributed_site(
         "localhost", livestatusport, brokerport
     )
 
-    site_conns = api.list_all_site_connections()
+    site_conns = central_api.list_all_site_connections()
     if remote_site.name in site_conns:
         logger.warning(
             "[%s]: Site connection %s already exists",
@@ -1294,16 +1296,19 @@ def set_up_distributed_site(
             remote_site.name,
         )
     else:
-        api.create_site_connection(remote_site_config)
+        central_api.create_site_connection(remote_site_config)
 
     # to establish connection to the remote site
-    api.login_to_remote_site(remote_site.name)
+    central_api.login_to_remote_site(remote_site.name)
 
     # create host for the remote site in the central site
-    api.create_host(host_name=remote_site.name, logical_site_name=remote_site.name)
+    central_api.create_host(host_name=remote_site.name, logical_site_name=remote_site.name)
 
 
 def add_user_to_sudoers() -> None:
+    # TODO: duplicate code. this is also available as ./bin/omd-setup-site-for-dev
+    # we also have to be able to call this as a standalone script to be able to
+    # f12 into sites not create with the offical tools
     """Add the current user to the sudoers file."""
     try:
         username = getpass.getuser()
@@ -1358,16 +1363,26 @@ def core_logic(args: argparse.Namespace) -> None:
     validate_installation(cmk_pkg)
 
     central_site = Site(site_name, cmk_pkg)
-
     handle_site_creation(central_site, args.force)
 
+    # Distributed setup
+    remote_sites: list[Site] = []
+    for number in range(1, args.distributed + 1):
+        remote_site = Site(f"{central_site.name}_remote_{number}", config.cmk_pkg, is_remote=True)
+        handle_site_creation(remote_site, config.force)
+        remote_sites.append(remote_site)
+
+    configure_tracing(central_site, remote_sites)
+
     api = APIClient(site_name=site_name)
+    central_site.start_site(api)
     api.set_user_language(config.language.value)
     api.create_host(host_name=site_name)
 
-    # Distributed setup
-    for i in range(1, args.distributed + 1):
-        set_up_distributed_site(i, central_site, api, config)
+    for remote_site in remote_sites:
+        remote_api = APIClient(site_name=remote_site.name)
+        remote_site.start_site(remote_api)
+        set_up_distributed_site(remote_site, remote_api, central_site, api, config)
 
     api.activate_changes()
 
