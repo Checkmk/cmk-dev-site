@@ -310,6 +310,11 @@ class Site:
         self.cmk_pkg = cmk_pkg
         self._is_remote = is_remote
 
+    def __repr__(self):
+        return (
+            f"<Site name={self.name} cmk_pkg={self.cmk_pkg} is_remote_site={self.is_remote_site}>"
+        )
+
     @property
     def is_remote_site(self):
         return self._is_remote
