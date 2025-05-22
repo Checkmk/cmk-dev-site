@@ -419,6 +419,20 @@ class Site:
             # TODO: find a better way to identify remote site
             if "remote" in self.name:
                 subprocess.run(
+                    [
+                        "sudo",
+                        "omd",
+                        "config",
+                        self.name,
+                        "set",
+                        "TRACE_SEND_TARGET",
+                        "http://localhost:4321",
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+            else:
+                subprocess.run(
                     ["sudo", "omd", "config", self.name, "set", "TRACE_RECEIVE", "on"],
                     check=True,
                     capture_output=True,
@@ -432,20 +446,6 @@ class Site:
                         "set",
                         "TRACE_RECEIVE_PORT",
                         "4321",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-            else:
-                subprocess.run(
-                    [
-                        "sudo",
-                        "omd",
-                        "config",
-                        self.name,
-                        "set",
-                        "TRACE_SEND_TARGET",
-                        "http://localhost:4321",
                     ],
                     check=True,
                     capture_output=True,
