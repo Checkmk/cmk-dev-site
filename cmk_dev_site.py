@@ -299,9 +299,20 @@ def _prefix_log_site(self: "Site", *args: Any, **kwargs: Any) -> str:
 
 
 class Site:
-    def __init__(self, site_name: str, cmk_pkg: CMKPackage):
+    def __init__(
+        self,
+        site_name: str,
+        cmk_pkg: CMKPackage,
+        *,
+        is_remote: bool = False,
+    ):
         self.name = site_name
         self.cmk_pkg = cmk_pkg
+        self._is_remote = is_remote
+
+    @property
+    def is_remote_site(self):
+        return self._is_remote
 
     @log(prefix=_prefix_log_site)
     def create_site(self) -> None:
@@ -414,10 +425,7 @@ class Site:
             )
             return
         try:
-            # All remote site has remote in their name
-            # This might create problem if the name of central site has remote
-            # TODO: find a better way to identify remote site
-            if "remote" in self.name:
+            if self.is_remote_site:
                 subprocess.run(
                     [
                         "sudo",
@@ -1185,7 +1193,7 @@ def set_up_distributed_site(
     """
     Set up a distributed site.
     """
-    remote_site = Site(f"{central_site.name}_remote_{number}", config.cmk_pkg)
+    remote_site = Site(f"{central_site.name}_remote_{number}", config.cmk_pkg, is_remote=True)
 
     handle_site_creation(remote_site, config.force)
 
