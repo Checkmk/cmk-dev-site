@@ -8,6 +8,7 @@ configuration, proceeding with the next steps. Use the -f option to force a full
 """
 
 import argparse
+import difflib
 import functools
 import getpass
 import json
@@ -292,6 +293,14 @@ class CMKPackage:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+@dataclass
+class PartialCMKPackage:
+    version: str
+
+    def similarity(self, other: str) -> float:
+        return difflib.SequenceMatcher(None, self.version, other).ratio()
 
 
 def _prefix_log_site(self: "Site", *args: Any, **kwargs: Any) -> str:
@@ -944,10 +953,13 @@ class APIClient:
 
 def read_default_version() -> CMKPackage:
     raw_version = subprocess.check_output(("omd", "version", "-b"), text=True)
-    return parse_version(raw_version)
+    package = parse_version(raw_version)
+    if isinstance(package, CMKPackage):
+        return package
+    raise RuntimeError("🤔 Only found partial version with omd. WTF?")
 
 
-def parse_version(version: str) -> CMKPackage:
+def parse_version(version: str) -> CMKPackage | PartialCMKPackage:
     """Parse the version string into a cmk package."""
 
     if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)(?:\.(\w{3}))?$", version):
@@ -978,9 +990,18 @@ def parse_version(version: str) -> CMKPackage:
     elif match := re.match(r"^(\d+\.\d+\.\d+).(\w{3})$", version):
         try:
             return CMKPackage(
-                version=VersionWithPatch(version=match.group(1), type="p", patch=0),
+                version=VersionWithPatch(
+                    base_version=BaseVersion.from_str(match.group(1)),
+                    patch_type="p",
+                    patch=0,
+                ),
                 edition=Edition(match.group(2)),
             )
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(e)
+    elif match := re.match(r"^(\d+\.\d)+", version):
+        try:
+            return PartialCMKPackage(version)
         except ValueError as e:
             raise argparse.ArgumentTypeError(e)
     else:
@@ -988,6 +1009,34 @@ def parse_version(version: str) -> CMKPackage:
             f"'{version}' doesn't match expected format"
             " '[<branch>p|b<patch>.<edition>|<branch>-<YYYY.MM.DD>.<edition>]'"
         )
+
+
+def interactive_select(options: list[str], default: str) -> str:
+    print("Available versions:")
+    for i, o in enumerate(options):
+        maybe_default = " (selected)" if o == default else ""
+        print(f"\t{i + 1} {o}{maybe_default}")
+
+    while True:
+        user_input = input("Choose an option: ").strip()
+        if not user_input:
+            return default
+        try:
+            if (idx := int(user_input)) < len(options):
+                return options[idx]
+        except ValueError:
+            pass
+        print("Invalid input. Please enter a number of press Enter for the default")
+
+
+def interactive_version_select(partial_version: PartialCMKPackage) -> CMKPackage:
+    raw_versions = subprocess.check_output(("omd", "versions", "-b"), text=True).strip().split("\n")
+    most_similar = sorted(raw_versions, key=lambda v: partial_version.similarity(v))[-1]
+    selected_version = interactive_select(raw_versions, most_similar)
+    version = parse_version(selected_version)
+    if isinstance(version, CMKPackage):
+        return version
+    raise RuntimeError("Oh we select another incomplete version from omd output WTF?")
 
 
 @dataclass(frozen=True)
@@ -1002,7 +1051,9 @@ class Config:
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> Self:
-        version = args.version or read_default_version()
+        version: CMKPackage | PartialCMKPackage = args.version or read_default_version()
+        if isinstance(version, PartialCMKPackage):
+            version = interactive_version_select(version)
         return cls(
             cmk_pkg=version,
             name=args.name or cls._default_name(version.version),
