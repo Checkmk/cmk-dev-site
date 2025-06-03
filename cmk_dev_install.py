@@ -1040,7 +1040,3 @@ def main() -> int:
     if args.download_only:
         print(pkg_path)
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
