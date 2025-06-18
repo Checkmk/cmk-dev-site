@@ -1035,8 +1035,8 @@ def interactive_select(options: list[str], default: str) -> str:
         if not user_input:
             return default
         try:
-            if (idx := int(user_input)) < len(options):
-                return options[idx]
+            if (idx := int(user_input)) <= len(options) and idx > 0:
+                return options[idx - 1]
         except ValueError:
             pass
         print("Invalid input. Please enter a number of press Enter for the default")
