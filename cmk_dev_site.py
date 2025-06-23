@@ -399,12 +399,6 @@ class Site:
             # )
 
             subprocess.run(
-                ["sudo", "omd", "config", self.name, "set", "CORE", "cmc"],
-                check=True,
-                capture_output=True,
-            )
-
-            subprocess.run(
                 [
                     "sudo",
                     "omd",
