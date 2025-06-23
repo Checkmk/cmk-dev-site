@@ -1247,26 +1247,14 @@ def handle_site_creation(site: Site, force: bool) -> None:
         logger.warning("Use force option to delete the existing site")
 
 
-def set_up_distributed_site(
-    remote_site: Site,
-    remote_api: APIClient,
+def connect_central_to_remote(
     central_site: Site,
     central_api: APIClient,
-    config: Config,
+    remote_site: Site,
 ) -> None:
     """
     Set up a distributed site.
     """
-    remote_api.set_user_language(config.language.value)
-
-    remote_api.create_host(host_name=remote_site.name)
-    remote_site.register_host_with_agent(
-        host_name=remote_site.name, gui_user=GUI_USER, gui_pw=GUI_PW
-    )
-    remote_api.activate_changes()
-    remote_site.trigger_site_checking_cycle()
-    remote_site.discover_services()
-
     central_site.add_remote_site_certificate(remote_site.name)
     livestatusport = read_config_int(remote_site.name, "LIVESTATUS_TCP_PORT")
     brokerport = read_config_int(remote_site.name, "RABBITMQ_PORT")
@@ -1300,9 +1288,6 @@ def set_up_distributed_site(
 
     # to establish connection to the remote site
     central_api.login_to_remote_site(remote_site.name)
-
-    # create host for the remote site in the central site
-    central_api.create_host(host_name=remote_site.name, logical_site_name=remote_site.name)
 
 
 def add_user_to_sudoers() -> None:
@@ -1382,7 +1367,19 @@ def core_logic(args: argparse.Namespace) -> None:
     for remote_site in remote_sites:
         remote_api = APIClient(site_name=remote_site.name)
         remote_site.start_site(remote_api)
-        set_up_distributed_site(remote_site, remote_api, central_site, api, config)
+        remote_api.set_user_language(config.language.value)
+        remote_api.create_host(host_name=remote_site.name)
+        remote_site.register_host_with_agent(
+            host_name=remote_site.name, gui_user=GUI_USER, gui_pw=GUI_PW
+        )
+        remote_api.activate_changes()
+        remote_site.trigger_site_checking_cycle()
+        remote_site.discover_services()
+
+        connect_central_to_remote(central_site, api, remote_site)
+
+        # create host for the remote site in the central site
+        api.create_host(host_name=remote_site.name, logical_site_name=remote_site.name)
 
     api.activate_changes()
 
