@@ -599,36 +599,69 @@ class Site:
 
     @log(prefix=_prefix_log_site)
     def register_host_with_agent(self, host_name: str, gui_user: str, gui_pw: str) -> None:
-        # Check if the cmk agent is already installed
         cmk_agent_ctl_path = shutil.which("cmk-agent-ctl")
         if not cmk_agent_ctl_path:
-            logger.warning(
-                "[%s]: cmk-agent-ctl not found. Skipping registering an agent.",
-                colorize(self.name, "yellow"),
-            )
-            return
+            raise RuntimeError("cmk-agent-ctl not found. Please install the Checkmk agent.")
 
         try:
-            cmd = [
-                "sudo",
-                cmk_agent_ctl_path,
-                "-v",
-                "register",
-                "--hostname",
-                host_name,
-                "--server",
-                "127.0.0.1",
-                "--site",
-                self.name,
-                "--user",
-                gui_user,
-                "--password",
-                gui_pw,
-                "--trust-cert",
-            ]
-            subprocess.run(cmd, check=True)
+            subprocess.run(
+                args=[
+                    "sudo",
+                    cmk_agent_ctl_path,
+                    "-v",
+                    "register",
+                    "--hostname",
+                    host_name,
+                    "--server",
+                    "127.0.0.1",
+                    "--site",
+                    self.name,
+                    "--user",
+                    gui_user,
+                    "--password",
+                    gui_pw,
+                    "--trust-cert",
+                ],
+                check=True,
+            )
         except subprocess.CalledProcessError as e:
             raise RuntimeError("ERROR: Failed to register host with cmk-agent-ctl. ") from e
+
+
+def checkmk_agent_needs_installing() -> bool:
+    """Check if the Checkmk agent is installed."""
+    cmk_agent_ctl_path = shutil.which("cmk-agent-ctl")
+    if cmk_agent_ctl_path:
+        return True
+    # Check if port 6556 is open
+    port_6556_open = (
+        subprocess.run(["sudo", "netstat", "-tuln"], capture_output=True, text=True).stdout.find(
+            ":6556 "
+        )
+        != -1
+    )
+
+    apt_checkmk_installed = (
+        subprocess.run(
+            ["dpkg-query", "-W", "-f='${Status}'", "check-mk-agent"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        == "'install ok installed'"
+    )
+    return port_6556_open or apt_checkmk_installed
+
+
+@log()
+def download_and_install_agent(api: "APIClient") -> None:
+    """Download and install the Checkmk agent."""
+    download_path = Path("/tmp/cmk-agent.deb")
+    api.download_agent(download_path)
+
+    try:
+        subprocess.run(["sudo", "dpkg", "-i", download_path], check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Could not install the Checkmk agent.") from e
 
 
 def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
@@ -970,6 +1003,23 @@ class APIClient:
         )
 
         if response.status_code != 204:
+            raise_runtime_error(response)
+
+    @log(prefix=_prefix_log_api_client)
+    def download_agent(self, download_path: Path) -> None:
+        """Download the Checkmk agent."""
+        response = self.session.get(
+            f"{self.base_url}/domain-types/agent/actions/download/invoke",
+            params={"os_type": "linux_deb"},
+            headers={
+                "Accept": "application/octet-stream",
+                "Content-Type": "application/json",
+            },
+        )
+        if response.status_code == 200:
+            with open(download_path, "wb") as f:
+                f.write(response.content)
+        else:
             raise_runtime_error(response)
 
 
@@ -1364,6 +1414,8 @@ def core_logic(args: argparse.Namespace) -> None:
     central_site.start_site(api)
     api.set_user_language(config.language.value)
     api.create_host(host_name=site_name)
+    if not checkmk_agent_needs_installing():
+        download_and_install_agent(api)
 
     for remote_site in remote_sites:
         remote_api = APIClient(site_name=remote_site.name)
