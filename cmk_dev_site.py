@@ -1357,7 +1357,8 @@ def core_logic(args: argparse.Namespace) -> None:
         handle_site_creation(remote_site, config.force)
         remote_sites.append(remote_site)
 
-    configure_tracing(central_site, remote_sites)
+    if central_site.cmk_pkg.version.base_version >= BaseVersion(2, 4):
+        configure_tracing(central_site, remote_sites)
 
     api = APIClient(site_name=site_name)
     central_site.start_site(api)
