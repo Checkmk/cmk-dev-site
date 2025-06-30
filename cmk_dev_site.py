@@ -1397,7 +1397,7 @@ def core_logic(args: argparse.Namespace) -> None:
     # Distributed setup
     remote_sites: list[Site] = []
     for number in range(1, args.distributed + 1):
-        remote_site = Site(f"{central_site.name}_remote_{number}", config.cmk_pkg, is_remote=True)
+        remote_site = Site(f"{central_site.name}_r{number}", config.cmk_pkg, is_remote=True)
         handle_site_creation(remote_site, config.force)
         remote_sites.append(remote_site)
 
