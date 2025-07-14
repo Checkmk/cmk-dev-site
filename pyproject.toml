@@ -1,0 +1,110 @@
+# See https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cmk-dev-site"
+dynamic = ["version"]  # will-be-updated-automatically
+description = "Easily Install Checkmk"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICEN[CS]E"]
+requires-python = ">=3.11,<4.0"
+keywords = ["cmk", "checkmk", "site", "monitoring"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: Unix",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Build Tools",
+]
+dependencies = [
+  "requests",
+  "checkmk-dev-tools>=0.10.1,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.400",
+    "pytest>=8.3.4",
+    "ruff>=0.9.6",
+    "twine>=6.1.0,<7",
+    "snippets2changelog>=1.6.0,<2",
+]
+
+[project.scripts]
+cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
+cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
+
+[project.urls]
+Repository = "https://github.com/Checkmk/cmk-dev-site"
+Changelog = "https://github.com/Checkmk/cmk-dev-site/blob/CHANGE_ME_I_AM_A_CHANGELOG/changelog.md"
+
+[tool.hatch.version]
+path = "cmk_dev_site/version.py"
+
+# https://hatch.pypa.io/1.13/config/build/#vcs
+# auto generated file cmk_dev_site/version.py would be excluded otherwise
+[tool.hatch.build.targets.sdist]
+ignore-vcs = true
+[tool.hatch.build.targets.wheel]
+ignore-vcs = true
+
+[tool.ruff]
+# Base configuration
+line-length = 100
+target-version = "py311"
+
+# Enable recommended rules
+select = [
+    "F",    # Pyflakes
+    "E",    # Pycodestyle errors
+    "W",    # Pycodestyle warnings
+    "UP",   # Pyupgrade
+    "I",    # Isort
+    "SIM",  # flake8-simplify
+]
+
+# Additional rules to enable
+extend-select = [
+    "RUF",  # Ruff-specific rules
+]
+
+# Files/directories to exclude
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "dist",
+    "build",
+]
+
+# Enable automatic fixes
+fix = true
+
+[tool.pyright]
+# Base configuration
+pythonVersion = "3.11"
+pythonPlatform = "All"
+typeCheckingMode = "strict"
+
+# Strict checks configuration
+strict = [
+    "checkUntypedFunctionSignatures",
+    "reportMissingParameterType",
+    "reportMissingTypeStubs",
+]
+
+# Additional checks
+reportUnusedImport = true
+reportPrivateUsage = "warning"
+reportUnusedVariable = "warning"
+reportUnusedExpression = "warning"
+reportUnnecessaryTypeIgnoreComment = true
+
+# Execution environment
+include = ["cmk_dev_site"]
+exclude = ["**/tests"]

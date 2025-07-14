@@ -1,0 +1,41 @@
+/.container_home_dir
+/untracked
+/dist
+/out
+/.venv
+.~*
+*~
+__pycache__
+.mypy_cache
+idea
+.idea
+*.wpu
+
+# Bazel
+bazel-*
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# automatically updated by snippets2changelog and changelog2version
+changelog.md
+cmk_dev_site/version.py
+version.json
