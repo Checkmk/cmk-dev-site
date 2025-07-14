@@ -35,6 +35,8 @@ from typing import (
     TypeVar,
 )
 
+from .version import __version__
+
 try:
     import requests
     from requests.exceptions import JSONDecodeError
@@ -1156,6 +1158,7 @@ def setup_parser() -> argparse.ArgumentParser:
         description=descr,
         formatter_class=ArgFormatter,
     )
+    parser.add_argument("--version", action="version", version=__version__)
 
     parser.add_argument(
         "version",

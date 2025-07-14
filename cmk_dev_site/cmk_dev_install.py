@@ -35,6 +35,8 @@ from typing import Any, ClassVar, Literal, ParamSpec, TextIO, TypeVar
 
 import requests
 
+from .version import __version__
+
 CREDENTIALS_FILE = Path("~/.cmk-credentials").expanduser()
 PROGRESS_LEVEL = 25  # Between  INFO (20) and WARNING (30)
 CONFIG_PATH = Path("~/.config/jenkins_jobs/jenkins_jobs.ini").expanduser()
@@ -852,6 +854,8 @@ def setup_parser() -> argparse.ArgumentParser:
         description=descr,
         formatter_class=ArgFormatter,
     )
+    parser.add_argument("--version", action="version", version=__version__)
+
     parser.add_argument(
         "build",
         type=parse_version,
