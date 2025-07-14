@@ -207,7 +207,7 @@ class GitVersion:
         return f"git:{self.branch}:{self.commit_hash}"
 
 
-type Version = BaseVersion | VersionWithPatch | VersionWithReleaseDate | PartialVersion | GitVersion
+Version = BaseVersion | VersionWithPatch | VersionWithReleaseDate | PartialVersion | GitVersion
 
 
 class Edition(StrEnum):
@@ -926,11 +926,12 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
         and (existed_sitenames := find_sitenames_by_version(cmk_pkg.omd_version))
         and not download_only
     ):
+        nl = "\n"
         raise RuntimeError(
             f"Found sites existed with the version {cmk_pkg.omd_version}: {existed_sitenames}\n"
             "Please remove the site, before reinstalling using:\n"
             f"""{
-                "\n".join(
+                nl.join(
                     [
                         f"sudo omd -f rm --kill --apache-reload {sitename}"
                         for sitename in existed_sitenames
