@@ -73,7 +73,7 @@ def main() {
 
                             # create release branch and publish generated changelog
                             git checkout -b release/v\$CHANGELOG_VERSION
-                            git add changelog.md cmk-dev-site/version.py
+                            git add changelog.md cmk_dev_site/version.py
                             git commit -m "Add changelog for \$CHANGELOG_VERSION"
                             git push origin HEAD:release/\$CHANGELOG_VERSION
 
@@ -106,7 +106,7 @@ def main() {
                 ]) {
                     sh(label: "publish package", script: """
                         uv publish \
-                            --token "${PYPI_API_TOKEN_CMK_DEV_SITE_ONLY}" \
+                            --token "${PYPI_API_TOKEN_CMK_DEV_SITE_ONLY}"
                     """);
                 }
             }
