@@ -17,109 +17,27 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import (
     Any,
-    ClassVar,
     Literal,
     NotRequired,
-    ParamSpec,
     Self,
-    TextIO,
     TypedDict,
-    TypeVar,
 )
 
 import requests
 from requests.exceptions import JSONDecodeError
 
+from utils.log import colorize, generate_log_decorator, get_logger
+
 from .version import __version__
 
-PROGRESS_LEVEL = 25  # Between DEBUG (10) and INFO (20)
-logging.addLevelName(PROGRESS_LEVEL, "INFO")
-logger = logging.getLogger(__name__)
-
-T = TypeVar("T")  # Type variable for a generic type
-P = ParamSpec("P")  # Type variable for a function's parameters
-
-
-def log(
-    info_message: str | None = None,
-    error_message: str | None = None,
-    message_info: Callable[P, str] | None = None,
-    prefix: Callable[P, str] | None = None,
-    max_level: int = logging.INFO,
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """Decorator for logging function calls, handling errors with optional warnings
-
-    :param info_message: The message to log before the function call.
-    :param error_message: The message to log if the function raises an exception.
-    :param message_info: generate a custom info message based on the function's arguments.
-    :param prefix: generate a custom prefix for the info message based on the function's arguments.
-    :param max_level: maximum logging level to use for logging message.
-    """
-
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            formated_func_name = func.__name__.replace("_", " ").capitalize()
-            if message_info:
-                msg = message_info(*args, **kwargs)
-            else:
-                msg = info_message or f"{formated_func_name}..."
-
-            if prefix:
-                msg = prefix(*args, **kwargs) + msg
-
-            # Log function call details
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(
-                    "Calling %s with args: %s, kwargs: %s",
-                    colorize(func.__name__, "cyan"),
-                    args,
-                    kwargs,
-                )
-            else:
-                if max_level >= logging.INFO:
-                    logger.log(PROGRESS_LEVEL, msg)
-
-            try:
-                result = func(*args, **kwargs)
-
-            except Exception:  # pylint: disable=broad-except
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s Trace:", func.__name__, exc_info=True)
-                else:
-                    logger.info("%s%s", msg, colorize("Failed", "red"))
-                if error_message:
-                    logger.error(error_message)
-
-                # re-raise the exception
-                raise
-            else:
-                # Log function result details
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("%s returned: %s", colorize(func.__name__, "cyan"), result)
-
-                else:
-                    if max_level >= logging.INFO:
-                        msg = (
-                            f"{msg}{colorize('OK', 'green')}"
-                            if result is None
-                            else f"{msg}-> {colorize(str(result), 'green')}"
-                        )
-                        logger.info("%s", msg)
-
-                return result
-
-        return wrapper
-
-    return decorator
-
+logger = get_logger(__name__)
+log = generate_log_decorator(logger)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
@@ -703,69 +621,6 @@ def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
     omd_config_set(central_site.name, "TRACE_SEND", "on")
 
 
-def colorize(text: str, color: str) -> str:
-    """Colorize text with ANSI escape codes."""
-    colors = {
-        "blue": "\033[34m",
-        "green": "\033[32m",
-        "yellow": "\033[33m",
-        "red": "\033[31m",
-        "magenta": "\033[35;1m",
-        "cyan": "\033[36m",
-    }
-    rest = "\033[0m"
-    if color_code := colors.get(color):
-        return f"{color_code}{text}{rest}"
-
-    return text
-
-
-class ColoredFormatter(logging.Formatter):
-    """Custom log formatter that colorizes log messages based on their level."""
-
-    # Define ANSI escape codes for colors
-    COLORS: ClassVar[Mapping[int, str]] = {
-        logging.DEBUG: "blue",
-        logging.INFO: "green",
-        logging.WARNING: "yellow",
-        logging.ERROR: "red",
-        logging.CRITICAL: "magenta",
-        PROGRESS_LEVEL: "cyan",
-    }
-
-    def format(self, record: logging.LogRecord) -> str:
-        color = self.COLORS.get(record.levelno, "")
-
-        # Colorize the levelname using termcolor
-        record.levelname = colorize(record.levelname, color)
-
-        # Call the parent format method to handle the message formatting
-        return super().format(record)
-
-
-class InlineStreamHandler(logging.StreamHandler[TextIO]):
-    """Custom StreamHandler to support inline logging for progress updates."""
-
-    def __init__(self):
-        super().__init__(sys.stderr)
-        self.current_inline_message = False
-
-    def emit(self, record: logging.LogRecord) -> None:
-        # Format the message
-        msg = self.format(record)
-        if record.levelno == PROGRESS_LEVEL:
-            # Overwrite the same line for progress
-            print(f"\r\033[K{msg}", end="", flush=True, file=sys.stderr)
-            self.current_inline_message = True
-        else:
-            # Clear inline message if switching to a regular log
-            if self.current_inline_message:
-                print(f"\r\033[K{msg}", flush=True, file=sys.stderr)
-                self.current_inline_message = False
-            else:
-                print(msg, flush=True, file=sys.stderr)
-
-
 def raise_runtime_error(response: requests.Response) -> None:
     try:
         raise RuntimeError(json.dumps(response.json(), indent=4))
@@ -1207,21 +1062,6 @@ def setup_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def setup_logger(verbose: int) -> None:
-    """Configure the logging system."""
-
-    console_handler = InlineStreamHandler()
-
-    # default log is verbose, show critical, error, warning, and info messages.
-    log_level = max(logging.INFO - (verbose * 10), logging.DEBUG)  # Map verbosity to log levels
-    logger.setLevel(log_level)
-
-    # Use the ColoredFormatter
-    formatter = ColoredFormatter("%(levelname)s: %(message)s")
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-
 def find_version_by_site_name(site_name: str) -> str | None:
     """
     Get the list of sitenames that are running by a specific version
@@ -1443,7 +1283,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        setup_logger(args.verbose - args.quiet)
+        logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
         core_logic(args)
 
     except RuntimeError as e:
