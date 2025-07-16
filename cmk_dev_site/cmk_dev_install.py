@@ -1,4 +1,3 @@
-#!/usr/bin/env -S python3 -u
 """cmk-dev-install
 
 Download and install a Checkmk version.

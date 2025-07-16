@@ -1,4 +1,3 @@
-#!/usr/bin/env -S python3 -u
 """cmk-dev-site
 
 Set up sites based on the specified OMD version
@@ -35,17 +34,10 @@ from typing import (
     TypeVar,
 )
 
+import requests
+from requests.exceptions import JSONDecodeError
+
 from .version import __version__
-
-try:
-    import requests
-    from requests.exceptions import JSONDecodeError
-except ImportError:
-    raise ImportError(
-        "The 'requests' library is not installed."
-        "Please install it using 'apt install python3-requests'."
-    )
-
 
 PROGRESS_LEVEL = 25  # Between DEBUG (10) and INFO (20)
 logging.addLevelName(PROGRESS_LEVEL, "INFO")
