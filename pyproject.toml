@@ -106,5 +106,5 @@ reportUnusedExpression = "warning"
 reportUnnecessaryTypeIgnoreComment = true
 
 # Execution environment
-include = ["cmk_dev_site", "utils"]
+include = ["cmk_dev_site", "utils", "omd"]
 exclude = ["**/tests"]
