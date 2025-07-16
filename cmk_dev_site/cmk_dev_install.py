@@ -151,14 +151,12 @@ class CMKPackage:
         self,
         version: VersionWithPatch | VersionWithReleaseDate | BaseVersion,
         edition: Edition,
-        distro_codename: str,
-        base_url: str = CMK_DOWNLOAD_URL,
+        distro_codename: str = "noble",
         arch: str = "amd64",
     ):
         self.version = version
         self.edition = edition
         self.distro_codename = distro_codename
-        self.base_url = base_url
         self.arch = arch
 
     @property
@@ -177,14 +175,15 @@ class CMKPackage:
         return f"{self.package_raw_name}_0.{self.distro_codename}_{self.arch}.deb"
 
     @property
-    def download_url(self) -> str:
-        """Get the absolute download URL for the package."""
-        return f"{self.base_url}/{self.version}/{self.package_name}"
-
-    @property
-    def installed_path(self) -> Path:
-        """Get the path where the package is installed."""
-        return INSTALLATION_PATH / Path(self.omd_version)
+    def base_version(self) -> BaseVersion:
+        """Get the base version."""
+        match self.version:
+            case VersionWithPatch(base_version=base_version, patch_type=_, patch=_):
+                return base_version
+            case VersionWithReleaseDate(base_version=base_version, release_date=_):
+                return base_version
+            case BaseVersion():
+                return self.version
 
     def __str__(self) -> str:
         return f"{self.version}.{self.edition.value}"
@@ -595,9 +594,8 @@ def find_last_release(
             version=version_date,
             edition=edition,
             distro_codename=distro_codename,
-            base_url=url,
         )
-        if file_server.url_exists(pkg.download_url):
+        if file_server.url_exists(build_download_url(url, pkg)):
             return pkg
 
     raise RuntimeError(f"ERROR: No release found for the version {base_version}")
@@ -762,10 +760,12 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
     """
     Validate if the instllation should go through.
     """
-    already_installed = cmk_pkg.installed_path.exists()
+    already_installed = (INSTALLATION_PATH / Path(cmk_pkg.omd_version)).exists()
 
     if already_installed and not (force or download_only):
-        logger.warning("Version %s already installed.", cmk_pkg.installed_path)
+        logger.warning(
+            "Version %s already installed.", INSTALLATION_PATH / Path(cmk_pkg.omd_version)
+        )
         logger.warning("Use --force to re-download and re-install.")
 
         return False

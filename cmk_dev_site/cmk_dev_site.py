@@ -41,6 +41,7 @@ log = generate_log_decorator(logger)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
+INSTALLATION_PATH = Path("/omd/versions")
 
 
 class Language(StrEnum):
@@ -99,6 +100,10 @@ class BaseVersion:
                 other.patch,
             )
         return NotImplemented
+
+    def iso_format(self) -> str:
+        """Return the version in ISO format."""
+        return self.__str__()
 
 
 class VersionWithPatch(BaseVersion):
@@ -184,11 +189,15 @@ class CMKPackage:
 
     def __init__(
         self,
-        version: VersionWithPatch | VersionWithReleaseDate,
+        version: VersionWithPatch | VersionWithReleaseDate | BaseVersion,
         edition: Edition,
+        distro_codename: str = "noble",
+        arch: str = "amd64",
     ):
         self.version = version
         self.edition = edition
+        self.distro_codename = distro_codename
+        self.arch = arch
 
     @property
     def omd_version(self) -> str:
@@ -196,9 +205,25 @@ class CMKPackage:
         return f"{self.version}.{self.edition.value}"
 
     @property
-    def installed_path(self) -> Path:
-        """Get the path where the package is installed."""
-        return Path("/omd/versions", self.omd_version)
+    def package_raw_name(self) -> str:
+        """Get the package name."""
+        return f"check-mk-{self.edition.name.lower()}-{self.version}"
+
+    @property
+    def package_name(self) -> str:
+        """Get the package name."""
+        return f"{self.package_raw_name}_0.{self.distro_codename}_{self.arch}.deb"
+
+    @property
+    def base_version(self) -> BaseVersion:
+        """Get the base version."""
+        match self.version:
+            case VersionWithPatch(base_version=base_version, patch_type=_, patch=_):
+                return base_version
+            case VersionWithReleaseDate(base_version=base_version, release_date=_):
+                return base_version
+            case BaseVersion():
+                return self.version
 
     def __str__(self) -> str:
         return f"{self.version}.{self.edition.value}"
@@ -259,7 +284,7 @@ class Site:
             )
 
             # Setting the password for user
-            hashalgo = "-m" if self.cmk_pkg.version.base_version == "2.1.0" else "-B"
+            hashalgo = "-m" if self.cmk_pkg.base_version == "2.1.0" else "-B"
 
             subprocess.run(
                 [
@@ -298,7 +323,7 @@ class Site:
     @log(prefix=_prefix_log_site)
     def configure_site(self) -> None:
         try:
-            if self.cmk_pkg.version.base_version == "2.1.0":
+            if self.cmk_pkg.base_version == "2.1.0":
                 subprocess.run(
                     ["sudo", "omd", "config", self.name, "set", "MKNOTIFYD", "on"],
                     check=True,
@@ -603,7 +628,7 @@ def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
     # we assume that central_site and remote_sites share the same config and version
 
     if (
-        central_site.cmk_pkg.version.base_version < BaseVersion(2, 4, 0)
+        central_site.cmk_pkg.base_version < BaseVersion(2, 4, 0)
         or central_site.cmk_pkg.edition == Edition.SAAS
     ):
         logger.warning(
@@ -980,7 +1005,7 @@ class Config:
         )
 
     @staticmethod
-    def _default_name(version: VersionWithPatch | VersionWithReleaseDate) -> str:
+    def _default_name(version: VersionWithPatch | VersionWithReleaseDate | BaseVersion) -> str:
         """Find the default site name based on the Checkmk version."""
 
         match version:
@@ -988,6 +1013,8 @@ class Config:
                 return f"v{str(base_version).replace('.', '')}{patch_type}{patch}"
             case VersionWithReleaseDate(base_version=base_version):
                 return f"v{str(base_version).replace('.', '')}"
+            case BaseVersion():
+                return f"v{str(version).replace('.', '')}"
 
 
 class ArgFormatter(argparse.RawTextHelpFormatter):
@@ -1207,7 +1234,7 @@ def format_validate_installation(cmk_pkg: CMKPackage) -> str:
 @log(message_info=format_validate_installation)
 def validate_installation(cmk_pkg: CMKPackage) -> None:
     """Validate Checkmk installation with proper error handling."""
-    if not cmk_pkg.installed_path.exists():
+    if not (INSTALLATION_PATH / Path(cmk_pkg.omd_version)).exists():
         raise RuntimeError(
             f"Checkmk {cmk_pkg.version} is not installed.\n"
             f"Install it using:\n cmk-dev-install {cmk_pkg.version.iso_format()} "
@@ -1236,7 +1263,7 @@ def core_logic(args: argparse.Namespace) -> None:
         handle_site_creation(remote_site, config.force)
         remote_sites.append(remote_site)
 
-    if central_site.cmk_pkg.version.base_version >= BaseVersion(2, 4):
+    if central_site.cmk_pkg.base_version >= BaseVersion(2, 4):
         configure_tracing(central_site, remote_sites)
 
     api = APIClient(site_name=site_name)
