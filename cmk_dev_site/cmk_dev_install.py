@@ -278,9 +278,6 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
     """
     Remove a package using apt.
     """
-    if not installed_path.exists():
-        return
-
     try:
         result = subprocess.run(
             [
@@ -290,7 +287,6 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
                 "-y",
                 pkg_name,
             ],
-            check=True,  # Raises CalledProcessError if the command fails
             capture_output=True,  # Captures stdout and stderr
             text=True,  # Decodes output as text (str)
         )
