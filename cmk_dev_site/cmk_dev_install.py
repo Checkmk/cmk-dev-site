@@ -42,6 +42,7 @@ CONFIG_PATH = Path("~/.config/jenkins_jobs/jenkins_jobs.ini").expanduser()
 INSTALLATION_PATH = Path("/omd/versions")
 TSBUILD_URL = "https://tstbuilds-artifacts.lan.tribe29.com"
 CMK_DOWNLOAD_URL = "https://download.checkmk.com/checkmk"
+DOWNLOAD_DIR = Path("/tmp")
 # Custom log level for progress updates
 logging.addLevelName(PROGRESS_LEVEL, "INFO")
 logger = logging.getLogger(__name__)
@@ -252,11 +253,6 @@ class CMKPackage:
         return f"{self.package_raw_name}_0.{self.distro_codename}_{self.arch}.deb"
 
     @property
-    def download_path(self) -> Path:
-        """Get the download path for the package."""
-        return Path("/tmp", self.package_name)
-
-    @property
     def download_url(self) -> str:
         """Get the absolute download URL for the package."""
         return f"{self.base_url}/{self.version}/{self.package_name}"
@@ -271,6 +267,13 @@ class CMKPackage:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+def build_download_url(url: str, pkg: CMKPackage) -> str:
+    """
+    Generate the download URL for a given package.
+    """
+    return f"{url}/{pkg.version}/{pkg.package_name}"
 
 
 @log()
@@ -943,7 +946,12 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
 
 
 def download_and_install_cmk_pkg(
-    file_server: FileServer, cmk_pkg: CMKPackage, force: bool, download_only: bool
+    file_server: FileServer,
+    base_url: str,
+    cmk_pkg: CMKPackage,
+    force: bool,
+    download_only: bool,
+    alternative_base_url: str | None = None,
 ) -> CMKPackage:
     """
     Download and install a Checkmk package.
@@ -951,15 +959,27 @@ def download_and_install_cmk_pkg(
     if not validate_installation(cmk_pkg, force, download_only):
         set_default_version(cmk_pkg.omd_version)
         return cmk_pkg
+
+    download_path = DOWNLOAD_DIR / cmk_pkg.package_name
+    url = build_download_url(base_url, cmk_pkg)
+
+    if not file_server.url_exists(url):
+        logger.warning(
+            f"Version {cmk_pkg} not found in the download server. Trying tstbuilds server."
+        )
+        if alternative_base_url is None:
+            raise RuntimeError("Download URL not found.")
+        else:
+            url = build_download_url(alternative_base_url, cmk_pkg)
     file_server.download_packet(
-        url=cmk_pkg.download_url,
-        download_path=cmk_pkg.download_path,
+        url=url,
+        download_path=download_path,
     )
-    if not (file_server.verify_hash(cmk_pkg.download_url, cmk_pkg.download_path)):
+    if not (file_server.verify_hash(build_download_url(base_url, cmk_pkg), download_path)):
         raise RuntimeError("ERROR: Hash verification failed.")
     if not download_only:
-        remove_package(cmk_pkg.package_raw_name, cmk_pkg.installed_path)
-        install_packet(cmk_pkg.download_path)
+        remove_package(cmk_pkg.package_raw_name, INSTALLATION_PATH / Path(cmk_pkg.omd_version))
+        install_packet(download_path)
     return cmk_pkg
 
 
@@ -992,8 +1012,15 @@ def core_logic(
 
         case PartialVersion():
             cmk_pkg = find_last_release(file_server, version, edition, distro.version_codename)
-            cmk_pkg = download_and_install_cmk_pkg(file_server, cmk_pkg, force, download_only)
-            pkg_path = cmk_pkg.download_path
+            cmk_pkg = download_and_install_cmk_pkg(
+                file_server=file_server,
+                base_url=CMK_DOWNLOAD_URL,
+                cmk_pkg=cmk_pkg,
+                force=force,
+                download_only=download_only,
+                alternative_base_url=TSBUILD_URL,
+            )
+            pkg_path = DOWNLOAD_DIR / cmk_pkg.package_name
             installed_version = cmk_pkg.omd_version
         case _:
             if version is None:
@@ -1008,13 +1035,15 @@ def core_logic(
                 edition=edition,
                 distro_codename=distro.version_codename,
             )
-            if not file_server.url_exists(cmk_pkg.download_url):
-                logger.warning(
-                    f"Version {version} not found in the download server. Trying tstbuilds server."
-                )
-                cmk_pkg.base_url = TSBUILD_URL
-            cmk_pkg = download_and_install_cmk_pkg(file_server, cmk_pkg, force, download_only)
-            pkg_path = cmk_pkg.download_path
+            cmk_pkg = download_and_install_cmk_pkg(
+                file_server=file_server,
+                base_url=CMK_DOWNLOAD_URL,
+                cmk_pkg=cmk_pkg,
+                force=force,
+                download_only=download_only,
+                alternative_base_url=TSBUILD_URL,
+            )
+            pkg_path = DOWNLOAD_DIR / cmk_pkg.package_name
             installed_version = cmk_pkg.omd_version
 
     if not download_only:
