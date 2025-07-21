@@ -191,36 +191,16 @@ class Site:
     def configure_site(self) -> None:
         try:
             if self.cmk_pkg.base_version == "2.1.0":
-                subprocess.run(
-                    ["sudo", "omd", "config", self.name, "set", "MKNOTIFYD", "on"],
-                    check=True,
-                    capture_output=True,
-                )
+                omd_config_set(self.name, "MKEVENTD", "on")
 
             # TODO: EC_SYSLOG is should be taken care of in the future if this would be default
-            # subprocess.run(
-            #     ["sudo", "omd", "config", site_name, "set", "MKEVENTD_SYSLOG", "on"]
-            # )
+            omd_config_set(self.name, "LIVESTATUS_TCP", "on")
 
-            subprocess.run(
-                [
-                    "sudo",
-                    "omd",
-                    "config",
-                    self.name,
-                    "set",
-                    "LIVESTATUS_TCP",
-                    "on",
-                ],
-                check=True,
-                capture_output=True,
-            )
-
-        except subprocess.CalledProcessError as e:
+        except RuntimeError as e:
             logger.warning(
                 "[%s]: Failed to configure the site. %s",
                 colorize(self.name, "yellow"),
-                e.stderr,
+                e,
             )
 
     @log(prefix=_prefix_log_site)
