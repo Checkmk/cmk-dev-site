@@ -14,12 +14,12 @@ import logging
 import re
 import shutil
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
+from collections.abc import Sequence
 from typing import (
     Any,
     NotRequired,
@@ -119,6 +119,38 @@ def _prefix_log_site(self: "Site", *args: Any, **kwargs: Any) -> str:
     return f"[{colorize(self.name, 'blue')}]: "
 
 
+def run_command(
+    args: Sequence[str],
+    check: bool = True,
+    error_message: str | None = None,
+    raise_runtime_error: bool = True,
+    text: bool = True,
+    silent: bool = False,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[Any]:
+    logger = logging.getLogger(__name__)
+    result = subprocess.run(args=args, capture_output=True, text=text, **kwargs)
+    msg = f"Running command: \n{colorize(' '.join(args), 'blue')}"
+    if not silent and result.stdout:
+        msg = msg + "\nSTDOUT:\n " + colorize(result.stdout.strip(), "green")
+    if not silent and result.stderr:
+        msg = msg + "\nSTDERR:\n " + colorize(result.stderr.strip(), "red")
+    logger.debug(msg)
+    if check and result.returncode != 0:
+        error_msg = (error_message + "\n") if error_message else ""
+        error_msg += (
+            f"ERROR: Command failed: {colorize(' '.join(args), 'red')}\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        )
+        if raise_runtime_error:
+            raise RuntimeError(error_msg)
+        else:
+            logger.warning(error_msg)
+
+    return result
+
+
 class Site:
     def __init__(
         self,
@@ -142,46 +174,43 @@ class Site:
 
     @log(prefix=_prefix_log_site)
     def create_site(self) -> None:
-        try:
-            subprocess.run(
-                [
-                    "sudo",
-                    "omd",
-                    "-V",
-                    self.cmk_pkg.omd_version,
-                    "create",
-                    "--apache-reload",
-                    "--no-autostart",
-                    self.name,
-                ],
-                check=True,
-                capture_output=True,
-            )
+        run_command(
+            [
+                "sudo",
+                "omd",
+                "-V",
+                self.cmk_pkg.omd_version,
+                "create",
+                "--apache-reload",
+                "--no-autostart",
+                self.name,
+            ],
+            check=True,
+            error_message=f"[{self.name}]: Failed to create the site",
+        )
 
-            # Setting the password for user
-            hashalgo = "-m" if self.cmk_pkg.base_version == "2.1.0" else "-B"
+        # Setting the password for user
+        hashalgo = "-m" if self.cmk_pkg.base_version == "2.1.0" else "-B"
 
-            subprocess.run(
-                [
-                    "sudo",
-                    "htpasswd",
-                    "-b",
-                    hashalgo,
-                    f"/omd/sites/{self.name}/etc/htpasswd",
-                    GUI_USER,
-                    GUI_PW,
-                ],
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"[{self.name}]: Failed to create the site: {e}") from e
+        run_command(
+            [
+                "sudo",
+                "htpasswd",
+                "-b",
+                hashalgo,
+                f"/omd/sites/{self.name}/etc/htpasswd",
+                GUI_USER,
+                GUI_PW,
+            ],
+            check=True,
+            error_message=f"[{self.name}]: Failed to create site user pass",
+        )
 
     @log(prefix=_prefix_log_site)
     def delete_site(self) -> None:
         """Delete the site if it already exists."""
         if Path("/omd/sites", self.name).exists():
-            subprocess.run(
+            run_command(
                 [
                     "sudo",
                     "omd",
@@ -192,7 +221,6 @@ class Site:
                     self.name,
                 ],
                 check=True,
-                capture_output=True,
             )
 
     @log(prefix=_prefix_log_site)
@@ -213,48 +241,36 @@ class Site:
 
     @log(prefix=_prefix_log_site)
     def start_site(self, api: "APIClient") -> None:
-        try:
-            subprocess.run(["sudo", "omd", "start", self.name], check=True)
-        except subprocess.CalledProcessError as e:
-            logger.warning(
-                "[%s]: Failed to start the site. Site probably is running (err: %s)",
-                colorize(self.name, "yellow"),
-                e.stderr,
-            )
-        logger.debug("Make sure API is available..")
+        run_command(
+            ["sudo", "omd", "start", self.name],
+            check=True,
+            raise_runtime_error=False,
+            error_message=(
+                f"[{colorize(self.name, 'yellow')}]: Failed to start the site. "
+                "Site probably is running"
+            ),
+        )
+        # TODO: avoid infinite loop
         while api.version() is None:
-            logger.debug("Waiting for API to be available")
             time.sleep(1)
-        logger.debug("API is available!")
 
     @log(prefix=_prefix_log_site)
     def trigger_site_checking_cycle(self) -> None:
-        try:
-            subprocess.run(
-                ["sudo", "su", "-", self.name, "-c", f"cmk -n '{self.name}'"],
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.warning(
-                "[%s]: Failed to trigger the site checking cycle. %s",
-                colorize(self.name, "yellow"),
-                e.stderr,
-            )
+        run_command(
+            ["sudo", "su", "-", self.name, "-c", f"cmk -n '{self.name}'"],
+            error_message=(
+                f"[{colorize(self.name, 'yellow')}]: Failed to trigger the site checking cycle"
+            ),
+            raise_runtime_error=False,
+        )
 
     @log(prefix=_prefix_log_site)
     def discover_services(self) -> None:
-        try:
-            subprocess.run(
-                ["sudo", "su", "-", self.name, "-c", "cmk -vI ; cmk -O"],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.warning(
-                "[%s]: Failed to discover services. %s",
-                colorize(self.name, "yellow"),
-                e.stderr,
-            )
+        run_command(
+            ["sudo", "su", "-", self.name, "-c", "cmk -vI ; cmk -O"],
+            error_message=f"[{colorize(self.name, 'yellow')}]: Failed to discover services",
+            raise_runtime_error=False,
+        )
 
     @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
     def get_site_connection_config(
@@ -305,24 +321,14 @@ class Site:
             config["basic_settings"]["customer"] = "provider"
         return config
 
+    @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
     def _append_to_file(self, file_path: Path, content: str) -> None:
-        logger.debug("Appending content to %s", file_path)
         try:
-            with subprocess.Popen(
+            run_command(
                 ["sudo", "su", "-", self.name, "-c", f"tee -a {file_path}"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,  # Capture stderr for debugging
-            ) as process:
-                _, stderr = process.communicate(input=content.encode())
-
-                if process.returncode != 0:
-                    raise RuntimeError(
-                        f"Failed to append to {file_path}. Error: {stderr.decode().strip()}"
-                    )
-
-        except (OSError, subprocess.SubprocessError) as e:
-            raise RuntimeError(f"File append operation failed: {e!s}") from e
+                input=content,
+                error_message=f"Failed to append to {file_path}",
+            )
         except UnicodeEncodeError as e:
             raise RuntimeError("Invalid content encoding") from e
 
@@ -336,39 +342,14 @@ class Site:
         )
         ssl_certificates_path = Path("/omd/sites", self.name, "var/ssl/ca-certificates.crt")
 
-        cmd = [
-            "sudo",
-            "openssl",
-            "x509",
-            "-inform",
-            "PEM",
-            "-in",
-            str(cert_path),
-            "-outform",
-            "DER",
-        ]
-
-        try:
-            # First subprocess call gets its own error context
-            cert_der = subprocess.run(
-                cmd,
-                check=True,
-                capture_output=True,
-            ).stdout
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to fetch DER certificate from {remote_site_name}") from e
-
-        try:
-            cert_pem = subprocess.run(
-                ["openssl", "x509", "-inform", "DER", "-outform", "PEM"],
-                input=cert_der,
-                capture_output=True,
-                check=True,
-            ).stdout.decode("utf-8")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                f"Failed to convert certificate for {remote_site_name} to PEM format"
-            ) from e
+        cert_der = run_command(
+            ("sudo", "openssl", "x509", "-inform", "PEM", "-in", str(cert_path), "-outform", "DER"),
+            input=str(cert_path).encode(),
+            text=False,
+        ).stdout
+        cert_pem: str = run_command(
+            ("openssl", "x509", "-inform", "DER", "-outform", "PEM"), input=cert_der, text=False
+        ).stdout.decode("utf-8")
 
         # Append certificate to SSL trust store
         self._append_to_file(ssl_certificates_path, cert_pem)
@@ -389,29 +370,26 @@ class Site:
         if not cmk_agent_ctl_path:
             raise RuntimeError("cmk-agent-ctl not found. Please install the Checkmk agent.")
 
-        try:
-            subprocess.run(
-                args=[
-                    "sudo",
-                    cmk_agent_ctl_path,
-                    "-v",
-                    "register",
-                    "--hostname",
-                    host_name,
-                    "--server",
-                    "127.0.0.1",
-                    "--site",
-                    self.name,
-                    "--user",
-                    gui_user,
-                    "--password",
-                    gui_pw,
-                    "--trust-cert",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError("ERROR: Failed to register host with cmk-agent-ctl. ") from e
+        run_command(
+            args=[
+                "sudo",
+                cmk_agent_ctl_path,
+                "-v",
+                "register",
+                "--hostname",
+                host_name,
+                "--server",
+                "127.0.0.1",
+                "--site",
+                self.name,
+                "--user",
+                gui_user,
+                "--password",
+                gui_pw,
+                "--trust-cert",
+            ],
+            error_message=f"Failed to register host {host_name} with cmk-agent-ctl",
+        )
 
 
 def checkmk_agent_needs_installing() -> bool:
@@ -420,18 +398,11 @@ def checkmk_agent_needs_installing() -> bool:
     if cmk_agent_ctl_path:
         return True
     # Check if port 6556 is open
-    port_6556_open = (
-        subprocess.run(["sudo", "netstat", "-tuln"], capture_output=True, text=True).stdout.find(
-            ":6556 "
-        )
-        != -1
-    )
+    port_6556_open = run_command(["sudo", "netstat", "-tuln"]).stdout.find(":6556 ") != -1
 
     apt_checkmk_installed = (
-        subprocess.run(
+        run_command(
             ["dpkg-query", "-W", "-f='${Status}'", "check-mk-agent"],
-            capture_output=True,
-            text=True,
         ).stdout.strip()
         == "'install ok installed'"
     )
@@ -444,17 +415,17 @@ def download_and_install_agent(api: "APIClient") -> None:
     download_path = Path("/tmp/cmk-agent.deb")
     api.download_agent(download_path)
 
-    try:
-        subprocess.run(["sudo", "dpkg", "-i", download_path], check=True)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError("Could not install the Checkmk agent.") from e
+    run_command(
+        ["sudo", "dpkg", "-i", str(download_path)],
+        error_message="Failed to install the Checkmk agent",
+    )
 
 
 def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
     # has to be called after the sites have been completely set up, but before starting the sites.
-    port_raw = subprocess.check_output(
+    port_raw = run_command(
         ["sudo", "omd", "config", central_site.name, "show", "TRACE_RECEIVE_PORT"]
-    )
+    ).stdout
     port = int(port_raw.strip())
 
     # we assume that central_site and remote_sites share the same config and version
@@ -724,7 +695,7 @@ class APIClient:
 
 
 def read_default_version() -> CMKPackage:
-    raw_version = subprocess.check_output(("omd", "version", "-b"), text=True)
+    raw_version = run_command(["omd", "version", "-b"]).stdout.strip()
     package = parse_version(raw_version)
     if isinstance(package, CMKPackage):
         return package
@@ -802,7 +773,7 @@ def interactive_select(options: list[str], default: str) -> str:
 
 
 def interactive_version_select(partial_version: PartialCMKPackage) -> CMKPackage:
-    raw_versions = subprocess.check_output(("omd", "versions", "-b"), text=True).strip().split("\n")
+    raw_versions = run_command(["omd", "versions", "-b"]).stdout.strip().split("\n")
     most_similar = sorted(raw_versions, key=lambda v: partial_version.similarity(v))[-1]
     selected_version = interactive_select(raw_versions, most_similar)
     version = parse_version(selected_version)
@@ -937,10 +908,11 @@ def find_version_by_site_name(site_name: str) -> str | None:
         raise RuntimeError(f"ERROR: {e.strerror}") from e
 
 
+@log(max_level=logging.DEBUG)
 def read_config_int(remote_site: str, param: str) -> int | None:
     try:
         return int(
-            subprocess.check_output(
+            run_command(
                 [
                     "sudo",
                     "su",
@@ -948,10 +920,7 @@ def read_config_int(remote_site: str, param: str) -> int | None:
                     "-c",
                     f"omd config show {param}",
                 ],
-                stderr=subprocess.DEVNULL,  # Suppress error output
-            )
-            .decode()
-            .split("\n")[0]
+            ).stdout.split("\n")[0]
         )
     except ValueError:
         return None
@@ -960,12 +929,7 @@ def read_config_int(remote_site: str, param: str) -> int | None:
 @log()
 def ensure_sudo() -> None:
     """It increases the sudo timeout and refreshes it."""
-    try:
-        # Ask for sudo privileges once and refresh them
-        subprocess.run(["sudo", "-v"], check=True)
-    except subprocess.CalledProcessError:
-        logger.error("Failed to acquire sudo privileges.")
-        sys.exit(1)
+    run_command(["sudo", "-v"], error_message="Failed to acquire sudo privileges.")
 
 
 def handle_site_creation(site: Site, force: bool) -> None:
@@ -1033,30 +997,24 @@ def add_user_to_sudoers() -> None:
     # we also have to be able to call this as a standalone script to be able to
     # f12 into sites not create with the offical tools
     """Add the current user to the sudoers file."""
-    try:
-        username = getpass.getuser()
-        sites = [
-            site_name
-            for site_name in subprocess.check_output(["omd", "sites", "--bare"])
-            .decode()
-            .split("\n")
-            if site_name
-        ]
-        sudoers_config = f"{username} ALL = ({','.join(sites)}) NOPASSWD: /bin/bash\n"
-        p = subprocess.Popen(
-            [
-                "sudo",
-                "EDITOR=tee",
-                "visudo",
-                "-f",
-                "/etc/sudoers.d/omd-setup-site-for-dev",
-            ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-        )
-        p.communicate(sudoers_config.encode("utf-8"))
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError("Failed to add user to sudoers") from e
+    username = getpass.getuser()
+    sites = [
+        site_name
+        for site_name in subprocess.check_output(["omd", "sites", "--bare"]).decode().split("\n")
+        if site_name
+    ]
+    sudoers_config = f"{username} ALL = ({','.join(sites)}) NOPASSWD: /bin/bash\n"
+    run_command(
+        [
+            "sudo",
+            "EDITOR=tee",
+            "visudo",
+            "-f",
+            "/etc/sudoers.d/omd-setup-site-for-dev",
+        ],
+        input=sudoers_config,
+        error_message="Failed to add user to sudoers",
+    )
 
 
 def format_validate_installation(cmk_pkg: CMKPackage) -> str:
