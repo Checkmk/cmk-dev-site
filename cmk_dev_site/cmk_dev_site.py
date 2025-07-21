@@ -30,13 +30,21 @@ from typing import (
 import requests
 from requests.exceptions import JSONDecodeError
 
-from omd import BaseVersion, CMKPackage, Edition, VersionWithPatch, VersionWithReleaseDate
+from omd import (
+    BaseVersion,
+    CMKPackage,
+    Edition,
+    VersionWithPatch,
+    VersionWithReleaseDate,
+    omd_config_set,
+)
 from utils.log import colorize, generate_log_decorator, get_logger
 
 from .version import __version__
 
 logger = get_logger(__name__)
 log = generate_log_decorator(logger)
+omd_config_set = log(max_level=logging.DEBUG)(omd_config_set)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
@@ -440,29 +448,6 @@ def download_and_install_agent(api: "APIClient") -> None:
         subprocess.run(["sudo", "dpkg", "-i", download_path], check=True)
     except subprocess.CalledProcessError as e:
         raise RuntimeError("Could not install the Checkmk agent.") from e
-
-
-def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
-    logger.debug("set omd configuration of site %s: %s => %s", site_name, config_key, config_value)
-    try:
-        subprocess.run(
-            [
-                "sudo",
-                "omd",
-                "config",
-                site_name,
-                "set",
-                config_key,
-                config_value,
-            ],
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"Could not set configuration {config_key} to {config_value} "
-            f"for site {site_name}\n{e.stderr}"
-        ) from e
 
 
 def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:

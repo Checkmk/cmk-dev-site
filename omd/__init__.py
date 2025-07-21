@@ -1,4 +1,5 @@
 import functools
+import subprocess
 from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
@@ -151,3 +152,25 @@ class CMKPackage:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
+    try:
+        subprocess.run(
+            [
+                "sudo",
+                "omd",
+                "config",
+                site_name,
+                "set",
+                config_key,
+                config_value,
+            ],
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Could not set configuration {config_key} to {config_value} "
+            f"for site {site_name}\n{e.stderr}"
+        ) from e
