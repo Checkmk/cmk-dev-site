@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 import sys
 from collections.abc import Callable
@@ -171,3 +172,43 @@ def get_logger(name: str) -> CustomLogger:
     logger.addHandler(console_handler)
 
     return logger
+
+
+def add_method_logging(
+    log: Callable[[Callable[P, T]], Callable[P, T]],
+    methods: list[str] | None = None,
+    prefix: str = "",
+    exclude_methods: list[str] | None = None,
+):
+    """
+    Class decorator that adds logging to specified methods or all public methods
+
+    Args:
+        methods: List of method names to log. If None, logs all public methods
+        prefix: Prefix for log messages
+        exclude_methods: Methods to exclude from logging
+    """
+
+    def class_decorator(cls: type[T]) -> type[T]:
+        exclude_methods_set = set(exclude_methods or [])
+        exclude_methods_set.update(["__init__", "__new__", "__del__"])
+
+        if methods is None:
+            # Get all public methods
+            target_methods: list[Any] = [
+                name
+                for name, method in inspect.getmembers(cls, predicate=inspect.isfunction)
+                if not name.startswith("_") and name not in exclude_methods_set
+            ]
+        else:
+            target_methods = [m for m in methods if m not in exclude_methods_set]
+
+        for method_name in target_methods:
+            if hasattr(cls, method_name):
+                original_method = getattr(cls, method_name)
+                decorated_method = log(original_method)
+                setattr(cls, method_name, decorated_method)
+
+        return cls
+
+    return class_decorator
