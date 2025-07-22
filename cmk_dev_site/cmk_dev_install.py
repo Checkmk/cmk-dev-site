@@ -21,7 +21,6 @@ import json
 import logging
 import re
 import shutil
-import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -41,6 +40,7 @@ from omd import (
     VersionWithPatch,
     VersionWithReleaseDate,
 )
+from utils import run_command
 from utils.log import colorize, generate_log_decorator, get_logger
 
 from .version import __version__
@@ -68,35 +68,27 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
     """
     Remove a package using apt.
     """
-    try:
-        result = subprocess.run(
-            [
-                "sudo",
-                "apt-get",
-                "purge",
-                "-y",
-                pkg_name,
-            ],
-            capture_output=True,  # Captures stdout and stderr
-            text=True,  # Decodes output as text (str)
-        )
-        logger.debug(result.stdout)
-        # making sure the path is relative to /omd/versions/
-        if not installed_path.is_relative_to(INSTALLATION_PATH):
-            raise RuntimeError(
-                f"ERROR: Removing package failed: {installed_path} is not a valid path"
-            )
-        subprocess.run(
-            [
-                "sudo",
-                "rm",
-                "-rf",
-                str(installed_path),
-            ],
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to remove package: {e.stderr}")
+    run_command(
+        [
+            "sudo",
+            "apt-get",
+            "purge",
+            "-y",
+            pkg_name,
+        ],
+        raise_runtime_error=False,
+    )
+    # making sure the path is relative to /omd/versions/
+    if not installed_path.is_relative_to(INSTALLATION_PATH):
+        raise RuntimeError(f"ERROR: Removing package failed: {installed_path} is not a valid path")
+    run_command(
+        [
+            "sudo",
+            "rm",
+            "-rf",
+            str(installed_path),
+        ],
+    )
 
 
 @log()
@@ -104,24 +96,16 @@ def install_packet(pkg_path: Path) -> None:
     """
     Install a package using apt from the provided file path.
     """
-    try:
-        # Run the apt install command with sudo and capture output
-        result = subprocess.run(
-            [
-                "sudo",
-                "apt-get",
-                "install",
-                "-y",
-                str(pkg_path),
-            ],
-            check=True,  # Raises CalledProcessError if the command fails
-            capture_output=True,  # Captures stdout and stderr
-            text=True,  # Decodes output as text (str)
-        )
-        logger.debug(result.stdout)
-
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to install package: {e.stderr}")
+    run_command(
+        [
+            "sudo",
+            "apt-get",
+            "install",
+            "-y",
+            str(pkg_path),
+        ],
+        error_message="Failed to install package",
+    )
 
 
 def get_user_pass() -> tuple[str, str]:
@@ -351,9 +335,7 @@ def validate_jenkins_jobs_ini() -> bool:
     """
 
     if not CONFIG_PATH.exists():
-        this_user_name = (
-            subprocess.check_output(["git", "config", "user.email"]).decode().strip().split("@")[0]
-        )
+        this_user_name = run_command(["git", "config", "user.email"]).stdout.strip().split("@")[0]
         config_content = f"""
 In order to interact with Jenkins you need to have a file at
 "~/.config/jenkins_jobs/jenkins_jobs.ini" containing the following content
@@ -404,7 +386,7 @@ def build_install_git_version(
             "To have 'ci-artifacts' available, run 'pip install checkmk-dev-tools' and try again"
         )
 
-    result = subprocess.run(
+    result = run_command(
         [
             "ci-artifacts",
             "fetch",
@@ -414,8 +396,6 @@ def build_install_git_version(
             "--no-remove-others",
             f"--params=DISTRO=ubuntu-{distro_id},EDITION={edition.name.lower()},CUSTOM_GIT_REF={commit_hash}",
         ],
-        check=True,
-        stdout=subprocess.PIPE,
     )
     typed_result = ArtifactsResult(**json.loads(result.stdout))
     if typed_result.result == "FAILURE":
@@ -492,26 +472,22 @@ def apply_acls_to_version(version: str) -> None:
     version_path = INSTALLATION_PATH / version
     user = getpass.getuser()
 
-    try:
-        if not version_path.exists():
-            raise RuntimeError(f"ERROR: Version {version_path.name} does not exist")
-        subprocess.run(
-            [
-                "sudo",
-                "setfacl",
-                "--recursive",
-                "-m",
-                f"user:{user}:rwX",
-                version_path,
-            ],
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"ERROR: {e.stderr}") from e
+    if not version_path.exists():
+        raise RuntimeError(f"ERROR: Version {version_path.name} does not exist")
+    run_command(
+        [
+            "sudo",
+            "setfacl",
+            "--recursive",
+            "-m",
+            f"user:{user}:rwX",
+            str(version_path),
+        ],
+    )
 
 
 def get_default_version() -> str:
-    return subprocess.check_output(("sudo", "omd", "version", "-b"), text=True).strip()
+    return run_command(["sudo", "omd", "version", "-b"]).stdout.strip()
 
 
 @log(max_level=logging.DEBUG)
@@ -521,20 +497,15 @@ def set_default_version(version: str) -> None:
     """
     if version == get_default_version():
         return
-    try:
-        subprocess.run(
-            ["sudo", "omd", "setversion", version],
-            check=True,
-            stderr=subprocess.PIPE,
-        )
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(e.stderr) from e
+    run_command(
+        ["sudo", "omd", "setversion", version],
+    )
 
 
 @log()
 def ensure_sudo() -> None:
     """It increases the sudo timeout and refreshes it."""
-    subprocess.run(["sudo", "-v"], check=True)
+    run_command(["sudo", "-v"])
 
 
 class ArgFormatter(argparse.RawTextHelpFormatter):
