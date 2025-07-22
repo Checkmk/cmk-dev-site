@@ -174,3 +174,24 @@ def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
             f"Could not set configuration {config_key} to {config_value} "
             f"for site {site_name}\n{e.stderr}"
         ) from e
+
+
+def omd_config_get(site_name: str, param: str) -> str | None:
+    try:
+        return subprocess.run(
+            [
+                "sudo",
+                "su",
+                site_name,
+                "-c",
+                f"omd config show {param}",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.split("\n")[0]
+
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"Could not get configuration {param} for site {site_name}\n{e.stderr}"
+        ) from e

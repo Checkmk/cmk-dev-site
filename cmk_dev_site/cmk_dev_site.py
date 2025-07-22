@@ -36,6 +36,7 @@ from omd import (
     Edition,
     VersionWithPatch,
     VersionWithReleaseDate,
+    omd_config_get,
     omd_config_set,
 )
 from utils.log import colorize, generate_log_decorator, get_logger
@@ -45,6 +46,7 @@ from .version import __version__
 logger = get_logger(__name__)
 log = generate_log_decorator(logger)
 omd_config_set = log(max_level=logging.DEBUG)(omd_config_set)
+omd_config_get = log(max_level=logging.DEBUG)(omd_config_get)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
@@ -409,6 +411,16 @@ def checkmk_agent_needs_installing() -> bool:
     return port_6556_open or apt_checkmk_installed
 
 
+def parse_int(value: str | None) -> int | None:
+    """Parse a str to an integer, returning None if the string is empty."""
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
 @log()
 def download_and_install_agent(api: "APIClient") -> None:
     """Download and install the Checkmk agent."""
@@ -423,10 +435,9 @@ def download_and_install_agent(api: "APIClient") -> None:
 
 def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
     # has to be called after the sites have been completely set up, but before starting the sites.
-    port_raw = run_command(
-        ["sudo", "omd", "config", central_site.name, "show", "TRACE_RECEIVE_PORT"]
-    ).stdout
-    port = int(port_raw.strip())
+    port = parse_int(omd_config_get(central_site.name, "TRACE_RECEIVE_PORT"))
+    if port is None:
+        raise RuntimeError("Failed to read the TRACE_RECEIVE_PORT for the central site")
 
     # we assume that central_site and remote_sites share the same config and version
 
@@ -908,24 +919,6 @@ def find_version_by_site_name(site_name: str) -> str | None:
         raise RuntimeError(f"ERROR: {e.strerror}") from e
 
 
-@log(max_level=logging.DEBUG)
-def read_config_int(remote_site: str, param: str) -> int | None:
-    try:
-        return int(
-            run_command(
-                [
-                    "sudo",
-                    "su",
-                    remote_site,
-                    "-c",
-                    f"omd config show {param}",
-                ],
-            ).stdout.split("\n")[0]
-        )
-    except ValueError:
-        return None
-
-
 @log()
 def ensure_sudo() -> None:
     """It increases the sudo timeout and refreshes it."""
@@ -958,8 +951,8 @@ def connect_central_to_remote(
     Set up a distributed site.
     """
     central_site.add_remote_site_certificate(remote_site.name)
-    livestatusport = read_config_int(remote_site.name, "LIVESTATUS_TCP_PORT")
-    brokerport = read_config_int(remote_site.name, "RABBITMQ_PORT")
+    livestatusport = parse_int(omd_config_get(remote_site.name, "LIVESTATUS_TCP_PORT"))
+    brokerport = parse_int(omd_config_get(remote_site.name, "RABBITMQ_PORT"))
 
     if livestatusport is None:
         logger.error(
