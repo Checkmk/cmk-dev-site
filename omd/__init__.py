@@ -1,5 +1,7 @@
+import difflib
 import functools
 import subprocess
+from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
@@ -152,6 +154,14 @@ class CMKPackage:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+@dataclass
+class PartialCMKPackage:
+    version: str
+
+    def similarity(self, other: str) -> float:
+        return difflib.SequenceMatcher(None, self.version, other).ratio()
 
 
 def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:

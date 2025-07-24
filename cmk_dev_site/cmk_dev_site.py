@@ -7,7 +7,6 @@ configuration, proceeding with the next steps. Use the -f option to force a full
 """
 
 import argparse
-import difflib
 import getpass
 import logging
 import re
@@ -28,6 +27,7 @@ from omd import (
     BaseVersion,
     CMKPackage,
     Edition,
+    PartialCMKPackage,
     VersionWithPatch,
     VersionWithReleaseDate,
     omd_config_get,
@@ -59,14 +59,6 @@ class Language(StrEnum):
     EN = "en"
     DE = "de"
     RO = "ro"
-
-
-@dataclass
-class PartialCMKPackage:
-    version: str
-
-    def similarity(self, other: str) -> float:
-        return difflib.SequenceMatcher(None, self.version, other).ratio()
 
 
 def _prefix_log_site(self: "Site", *args: Any, **kwargs: Any) -> str:
