@@ -1,20 +1,16 @@
-import json
 import time
 from pathlib import Path
 from typing import (
+    Any,
     NotRequired,
     TypedDict,
+    TypeVar,
 )
 
 import requests
 from requests.exceptions import JSONDecodeError
 
-
-def raise_runtime_error(response: requests.Response) -> None:
-    try:
-        raise RuntimeError(json.dumps(response.json(), indent=4))
-    except JSONDecodeError:
-        raise RuntimeError(response.text)
+T = TypeVar("T")
 
 
 class BasicSettings(TypedDict):
@@ -67,6 +63,35 @@ class RemoteSiteConnectionConfig(TypedDict):
     configuration_connection: ConfigurationConnection
 
 
+class CheckmkAPIException(Exception):
+    """Base exception for Checkmk API errors."""
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        response_data: dict[Any, Any] | str | None = None,
+    ):
+        super().__init__(message)
+        self.status_code = status_code
+        self.response_data = response_data
+
+
+def build_exception(response: requests.Response, message: str) -> CheckmkAPIException:
+    try:
+        return CheckmkAPIException(
+            message=message,
+            status_code=response.status_code,
+            response_data=response.json(),
+        )
+    except JSONDecodeError:
+        return CheckmkAPIException(
+            message=message + "\nFailed to parse response",
+            status_code=response.status_code,
+            response_data=response.text if response.text else None,
+        )
+
+
 class APIClient:
     """Checkmk API client."""
 
@@ -105,10 +130,6 @@ class APIClient:
         ip_address: str = "127.0.0.1",
     ) -> None:
         """Create a host on the Checkmk server."""
-
-        if host_name in self.list_all_hosts():
-            # TODO signal that the host already exists
-            return
         logical_site_name = logical_site_name or self.site_name
         response = self.session.post(
             f"{self.base_url}/domain-types/host_config/collections/all",
@@ -128,7 +149,7 @@ class APIClient:
             },
         )
         if response.status_code != 200:
-            raise_runtime_error(response)
+            raise build_exception(response, message="Failed to create host")
 
     def list_all_hosts(self) -> list[str]:
         """List all hosts registered on the Checkmk server."""
@@ -138,20 +159,18 @@ class APIClient:
                 "Content-Type": "application/json",
             },
         )
-        if response.status_code == 200:
-            hosts = [host["title"] for host in response.json()["value"]]
-            return hosts
         if response.status_code != 200:
-            raise_runtime_error(response)
+            raise build_exception(response, message="Failed to list all hosts")
 
-        return []
+        hosts = [host["title"] for host in response.json()["value"]]
+        return hosts
 
-    def _get_href_from_links(self, links: list[dict[str, str]], name: str) -> str:
+    def _get_href_from_links(self, links: list[dict[str, str]], name: str) -> str | None:
         """Extract the href from the links."""
         for link in links:
             if link["rel"] == name:
                 return link["href"]
-        raise ValueError(f"could not find link named {name} in {links}")
+        return None
 
     def _get(self, url: str) -> requests.Response:
         """Make a GET request to the Checkmk server."""
@@ -172,7 +191,7 @@ class APIClient:
         )
 
         if response.status_code != 200:
-            raise RuntimeError("Failed to create site connection")
+            raise build_exception(response, "Failed to create site connection")
 
     def set_user_language(self, language: str) -> None:
         """Set the user language on the Checkmk server."""
@@ -186,8 +205,7 @@ class APIClient:
             json={"language": language},
         )
         if response.status_code != 200:
-            # TODO: handle this more gracefully
-            pass
+            raise build_exception(response, "Failed to set user language")
 
     def list_all_site_connections(self) -> list[str]:
         """List all site connections registered on the Checkmk server."""
@@ -198,13 +216,18 @@ class APIClient:
             },
         )
         if response.status_code != 200:
-            raise_runtime_error(response)
+            raise build_exception(response, "Failed to list all site connections")
 
         site_connections = [site["id"] for site in response.json()["value"]]
         return site_connections
 
-    def activate_changes(self) -> None:
-        """Activate changes on the Checkmk server."""
+    def activate_changes(self) -> list[str] | None:
+        """Activate pending changes on the Checkmk server.
+
+        Returns:
+            list: A list of activated changes if any were made.
+            None: If there were no changes to activate.
+        """
         response = self.session.post(
             f"{self.base_url}/domain-types/activation_run/actions/activate-changes/invoke",
             headers={
@@ -221,37 +244,39 @@ class APIClient:
             },
             allow_redirects=True,
         )
-        if response.status_code == 200:
-            response.raise_for_status()
 
-            # Extract the link for subsequent calls
+        if response.status_code == 422:
+            return None
+        elif response.status_code != 200:
+            raise build_exception(response, "Failed to activate changes")
 
-            changes: set[str] = set()
-            # Polling loop
-            link = self._get_href_from_links(response.json()["links"], "self")
+        changes: set[str] = set()
+        # Polling loop
+        link = self._get_href_from_links(response.json()["links"], "self")
+        if link is None:
+            raise build_exception(
+                response,
+                "Activate change : Failed to find 'self' link in the response",
+            )
 
-            while True:
-                # Fetch data
-                response = self._get(link)
-                response.raise_for_status()
-                data = response.json()
+        while True:
+            # Fetch data
+            response = self._get(link)
+            if response.status_code != 200:
+                raise build_exception(response, "Failed to fetch activation changes")
+            data = response.json()
 
-                # Process changes
-                for change in data["extensions"]["changes"]:
-                    change_id = change["id"]
-                    if change_id not in changes:
-                        changes.add(change_id)
+            # Process changes
+            for change in data["extensions"]["changes"]:
+                change_id = change["id"]
+                if change_id not in changes:
+                    changes.add(change_id)
 
-                # Check if processing is complete
-                if not data["extensions"]["is_running"]:
-                    return  # Exit the function once processing is complete
-                # Wait before polling again
-                time.sleep(1)
-        elif response.status_code == 422:
-            # TODO: need warnings but outsied the function
-            pass
-        else:
-            raise_runtime_error(response)
+            # Check if processing is complete
+            if not data["extensions"]["is_running"]:
+                return list(changes)
+            # Wait before polling again
+            time.sleep(1)
 
     def login_to_remote_site(
         self, site_id: str, user: str = "cmkadmin", password: str = "cmk"
@@ -265,7 +290,7 @@ class APIClient:
         )
 
         if response.status_code != 204:
-            raise_runtime_error(response)
+            raise build_exception(response, "Failed to login to remote site")
 
     def download_agent(self, download_path: Path) -> None:
         """Download the Checkmk agent."""
@@ -281,4 +306,4 @@ class APIClient:
             with open(download_path, "wb") as f:
                 f.write(response.content)
         else:
-            raise_runtime_error(response)
+            raise build_exception(response, "Failed to download agent")

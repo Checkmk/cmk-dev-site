@@ -22,7 +22,7 @@ from typing import (
     Self,
 )
 
-from cmk.rest_api import APIClient, RemoteSiteConnectionConfig
+from cmk.rest_api import APIClient, CheckmkAPIException, RemoteSiteConnectionConfig
 from omd import (
     BaseVersion,
     CMKPackage,
@@ -48,7 +48,7 @@ def _prefix_log_api_client(self: APIClient, *_args: Any, **_kwargs: Any) -> str:
     return f"[{colorize(self.site_name, 'blue')}]: "
 
 
-APIClientWithLog = add_method_logging(log(prefix=_prefix_log_api_client))(APIClient)
+add_method_logging(log(prefix=_prefix_log_api_client))(APIClient)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
@@ -164,9 +164,15 @@ class Site:
                 "Site probably is running"
             ),
         )
-        # TODO: avoid infinite loop
-        while api.version() is None:
+        max_try = 5
+        while api.version() is None and max_try > 0:
+            max_try -= 1
             time.sleep(1)
+        if max_try == 0:
+            raise RuntimeError(
+                f"[{colorize(self.name, 'red')}]: Failed to start the site. "
+                "Check if the site is running and try again."
+            )
 
     @log(prefix=_prefix_log_site)
     def trigger_site_checking_cycle(self) -> None:
@@ -639,7 +645,7 @@ def connect_central_to_remote(
     )
 
     site_conns = central_api.list_all_site_connections()
-    if remote_site.name in site_conns:
+    if site_conns and remote_site.name in site_conns:
         logger.warning(
             "[%s]: Site connection %s already exists",
             colorize(central_site.name, "yellow"),
@@ -692,6 +698,31 @@ def validate_installation(cmk_pkg: CMKPackage) -> None:
         )
 
 
+def activate_changes(api: APIClient) -> None:
+    """Activate changes in the Checkmk site."""
+    result = api.activate_changes()
+    if not result:
+        logger.warning(
+            "[%s]: Nothing to activate",
+            colorize(api.site_name, "yellow"),
+        )
+
+
+def ensure_host_exists(
+    api: APIClient,
+    host_name: str,
+) -> None:
+    """Ensure the host exists; create it if it does not."""
+    if (hosts := api.list_all_hosts()) and host_name in hosts:
+        logger.warning(
+            "[%s]: Host %s already exists",
+            colorize(api.site_name, "yellow"),
+            host_name,
+        )
+    else:
+        api.create_host(host_name=host_name)
+
+
 @log()
 def core_logic(args: argparse.Namespace) -> None:
     """Main business logic separated from error handling."""
@@ -718,20 +749,37 @@ def core_logic(args: argparse.Namespace) -> None:
 
     api = APIClient(site_name=site_name)
     central_site.start_site(api)
-    api.set_user_language(config.language.value)
-    api.create_host(host_name=site_name)
+    try:
+        api.set_user_language(config.language.value)
+    except CheckmkAPIException as e:
+        logger.warning(
+            "[%s]: %s",
+            colorize(site_name, "yellow"),
+            e,
+        )
+
+        pass
+    ensure_host_exists(api, site_name)
     if not checkmk_agent_needs_installing():
         download_and_install_agent(api)
 
     for remote_site in remote_sites:
         remote_api = APIClient(site_name=remote_site.name)
         remote_site.start_site(remote_api)
-        remote_api.set_user_language(config.language.value)
-        remote_api.create_host(host_name=remote_site.name)
+        try:
+            remote_api.set_user_language(config.language.value)
+        except CheckmkAPIException as e:
+            logger.warning(
+                "[%s]: %s",
+                colorize(remote_site.name, "yellow"),
+                e,
+            )
+            pass
+        ensure_host_exists(remote_api, remote_site.name)
         remote_site.register_host_with_agent(
             host_name=remote_site.name, gui_user=GUI_USER, gui_pw=GUI_PW
         )
-        remote_api.activate_changes()
+        activate_changes(remote_api)
         remote_site.trigger_site_checking_cycle()
         remote_site.discover_services()
 
@@ -740,7 +788,7 @@ def core_logic(args: argparse.Namespace) -> None:
         # create host for the remote site in the central site
         api.create_host(host_name=remote_site.name, logical_site_name=remote_site.name)
 
-    api.activate_changes()
+    activate_changes(api)
 
     central_site.register_host_with_agent(
         host_name=central_site.name, gui_user=GUI_USER, gui_pw=GUI_PW
