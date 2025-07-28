@@ -92,7 +92,7 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
 
 
 @log()
-def install_packet(pkg_path: Path) -> None:
+def install_package(pkg_path: Path) -> None:
     """
     Install a package using apt from the provided file path.
     """
@@ -185,7 +185,7 @@ def parse_version(
 
 
 class FileServer:
-    """Represents a file server to download packets from."""
+    """Represents a file server to download packages from."""
 
     def __init__(
         self,
@@ -248,16 +248,16 @@ class FileServer:
         return file_hash == calculated_hash
 
     @log()
-    def download_packet(
+    def download_package(
         self,
         url: str,
         download_path: Path,
     ) -> None:
         """
-        Downloads a packet from the file server.
+        Downloads a package from the file server.
 
-        :param url: The URL of the packet.
-        :param download_path: The local path where the packet will be saved.
+        :param url: The URL of the package.
+        :param download_path: The local path where the package will be saved.
         """
 
         response = self._get(
@@ -653,7 +653,7 @@ def download_and_install_cmk_pkg(
             raise RuntimeError("Download URL not found.")
         else:
             url = build_download_url(alternative_base_url, cmk_pkg)
-    file_server.download_packet(
+    file_server.download_package(
         url=url,
         download_path=download_path,
     )
@@ -661,7 +661,7 @@ def download_and_install_cmk_pkg(
         raise RuntimeError("ERROR: Hash verification failed.")
     if not download_only:
         remove_package(cmk_pkg.package_raw_name, INSTALLATION_PATH / Path(cmk_pkg.omd_version))
-        install_packet(download_path)
+        install_package(download_path)
     return cmk_pkg
 
 
@@ -687,7 +687,7 @@ def core_logic(
     match version:
         case GitVersion(branch=branch, commit_hash=commit_hash):
             pkg_path = build_install_git_version(branch, commit_hash, edition, distro.version_id)
-            install_packet(pkg_path)
+            install_package(pkg_path)
             # default version will point to the latest installed version
             # we don't have to figure out which git version we just installed
             installed_version = get_default_version()
