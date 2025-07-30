@@ -1,6 +1,4 @@
-# Easy Install Checkmk
-
-Script to install CMK
+# cmk-dev-site
 
 <!-- MarkdownTOC -->
 
