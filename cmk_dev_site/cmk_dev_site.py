@@ -527,7 +527,7 @@ def setup_parser() -> argparse.ArgumentParser:
         nargs="?",
         help="specify the full omd version\n"
         f"(default: {colorize('omd version -b', 'blue')},"
-        " e.g {colorize('2.4.0-2025.04.07.cce', 'blue')}.)",
+        f" e.g {colorize('2.4.0-2025.04.07.cce', 'blue')}.)",
     )
 
     parser.add_argument(
