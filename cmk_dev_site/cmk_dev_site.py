@@ -22,8 +22,8 @@ from typing import (
     Self,
 )
 
-from cmk.rest_api import APIClient, CheckmkAPIException, RemoteSiteConnectionConfig
-from omd import (
+from .cmk.rest_api import APIClient, CheckmkAPIException, RemoteSiteConnectionConfig
+from .omd import (
     BaseVersion,
     CMKPackage,
     Edition,
@@ -33,9 +33,8 @@ from omd import (
     omd_config_get,
     omd_config_set,
 )
-from utils import run_command
-from utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
-
+from .utils import run_command
+from .utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
 from .version import __version__
 
 logger = get_logger(__name__)
