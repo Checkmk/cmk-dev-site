@@ -47,18 +47,6 @@ def main() {
                 """);
             }
 
-            stage("Validate entrypoints") {
-                sh(label: "run entrypoints", script: """
-                    set -o pipefail
-
-                    # this file is required to pass
-                    touch ~/.cmk-credentials
-
-                    uv run cmk-dev-install --help
-                    uv run cmk-dev-site --help
-                """);
-            }
-
             stage("Create changelog") {
                 sh(label: "create changelog", script: """
                     set -o pipefail
@@ -127,7 +115,7 @@ def main() {
                 }
             }
 
-            stage("Build package") {
+            stage("Build and install package") {
                 sh(label: "build package", script: """
                     # see comment in pyproject.toml
                     rm -rf dist/*
@@ -135,6 +123,18 @@ def main() {
                     uv run twine check dist/*
                     python3 -m pip uninstall -y cmk-dev-site
                     python3 -m pip install --pre --user dist/cmk_dev_site-\$(grep -E "^__version__.?=" cmk_dev_site/version.py | cut -d '"' -f 2 | sed 's/-//g')-py3-none-any.whl
+                """);
+            }
+
+            stage("Test package") {
+                sh(label: "build package", script: """
+                    # change to home directory so python won't pick up local modules
+                    cd
+                    # this file is required to pass
+                    touch ~/.cmk-credentials
+
+                    cmk-dev-install --help
+                    cmk-dev-site --help
                 """);
             }
 
