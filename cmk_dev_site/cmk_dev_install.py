@@ -30,7 +30,7 @@ from typing import Any
 
 import requests
 
-from omd import (
+from .omd import (
     BaseVersion,
     CMKPackage,
     Edition,
@@ -40,9 +40,8 @@ from omd import (
     VersionWithPatch,
     VersionWithReleaseDate,
 )
-from utils import run_command
-from utils.log import colorize, generate_log_decorator, get_logger
-
+from .utils import run_command
+from .utils.log import colorize, generate_log_decorator, get_logger
 from .version import __version__
 
 logger = get_logger(__name__)
