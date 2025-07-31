@@ -135,6 +135,9 @@ def main() {
                     uv run twine check dist/*
                     python3 -m pip uninstall -y cmk-dev-site
                     python3 -m pip install --pre --user dist/cmk_dev_site-\$(grep -E "^__version__.?=" cmk_dev_site/version.py | cut -d '"' -f 2 | sed 's/-//g')-py3-none-any.whl
+                    cd /tmp/
+                    cmk-dev-install --help
+                    cmk-dev-site --help
                 """);
             }
 
