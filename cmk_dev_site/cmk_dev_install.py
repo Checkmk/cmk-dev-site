@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import shutil
+import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -40,7 +41,7 @@ from .omd import (
     VersionWithPatch,
     VersionWithReleaseDate,
 )
-from .utils import run_command
+from .utils import run_command as run_command_c
 from .utils.log import colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -53,6 +54,27 @@ INSTALLATION_PATH = Path("/omd/versions")
 TSBUILD_URL = "https://tstbuilds-artifacts.lan.tribe29.com"
 CMK_DOWNLOAD_URL = "https://download.checkmk.com/checkmk"
 DOWNLOAD_DIR = Path("/tmp")
+
+
+def run_command(
+    args: Sequence[str],
+    check: bool = True,
+    error_message: str | None = None,
+    raise_runtime_error: bool = True,
+    text: bool = True,
+    silent: bool = False,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[Any]:
+    return run_command_c(
+        args,
+        check=check,
+        error_message=error_message,
+        raise_runtime_error=raise_runtime_error,
+        text=text,
+        silent=silent,
+        logger=logger,  # slightly hackish: pass in the right logger
+        **kwargs,
+    )
 
 
 def build_download_url(url: str, pkg: CMKPackage) -> str:
