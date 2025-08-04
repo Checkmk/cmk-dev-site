@@ -317,7 +317,7 @@ def checkmk_agent_needs_installing() -> bool:
     if cmk_agent_ctl_path:
         return True
     # Check if port 6556 is open
-    port_6556_open = run_command(["sudo", "netstat", "-tuln"]).stdout.find(":6556 ") != -1
+    port_6556_open = run_command(["sudo", "ss", "-tuln"]).stdout.find(":6556 ") != -1
 
     apt_checkmk_installed = (
         run_command(
