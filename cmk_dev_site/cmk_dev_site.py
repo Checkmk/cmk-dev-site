@@ -322,6 +322,7 @@ def checkmk_agent_needs_installing() -> bool:
     apt_checkmk_installed = (
         run_command(
             ["dpkg-query", "-W", "-f='${Status}'", "check-mk-agent"],
+            check=False,  # if no package is found, status code is not 0
         ).stdout.strip()
         == "'install ok installed'"
     )
