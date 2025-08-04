@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from collections.abc import Sequence
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -33,7 +34,7 @@ from .omd import (
     omd_config_get,
     omd_config_set,
 )
-from .utils import run_command
+from .utils import run_command as run_command_c
 from .utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -41,6 +42,27 @@ logger = get_logger(__name__)
 log = generate_log_decorator(logger)
 omd_config_set = log(max_level=logging.DEBUG)(omd_config_set)
 omd_config_get = log(max_level=logging.DEBUG)(omd_config_get)
+
+
+def run_command(
+    args: Sequence[str],
+    check: bool = True,
+    error_message: str | None = None,
+    raise_runtime_error: bool = True,
+    text: bool = True,
+    silent: bool = False,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[Any]:
+    return run_command_c(
+        args,
+        check=check,
+        error_message=error_message,
+        raise_runtime_error=raise_runtime_error,
+        text=text,
+        silent=silent,
+        logger=logger,
+        **kwargs,
+    )
 
 
 def _prefix_log_api_client(self: APIClient, *_args: Any, **_kwargs: Any) -> str:
