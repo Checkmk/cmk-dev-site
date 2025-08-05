@@ -1,9 +1,5 @@
 # cmk-dev-site
 
-## General
-
-See https://wiki.lan.checkmk.net/x/cDbUBw for how to use this tool as an end-user.
-
 ## Development & Contribution
 
 ### Preparation
