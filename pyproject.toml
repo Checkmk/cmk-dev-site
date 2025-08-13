@@ -59,7 +59,7 @@ line-length = 100
 target-version = "py311"
 
 # Enable recommended rules
-select = [
+lint.select = [
     "F",    # Pyflakes
     "E",    # Pycodestyle errors
     "W",    # Pycodestyle warnings
@@ -69,7 +69,7 @@ select = [
 ]
 
 # Additional rules to enable
-extend-select = [
+lint.extend-select = [
     "RUF",  # Ruff-specific rules
 ]
 
