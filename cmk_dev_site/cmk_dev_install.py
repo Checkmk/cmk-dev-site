@@ -22,6 +22,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -774,9 +775,9 @@ def execute(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
+def main(sys_argv: list[str] | None = None) -> int:
     parser = create_parser()
     setup_parser(parser)
 
-    args = parser.parse_args(namespace=DevInstallArgs())
+    args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
     return execute(args)

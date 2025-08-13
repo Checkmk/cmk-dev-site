@@ -8,6 +8,8 @@ from .cmk_dev_install import execute as execute_install
 from .cmk_dev_install import setup_parser as setup_parser_install
 from .cmk_dev_site import execute as execute_site
 from .cmk_dev_site import setup_parser as setup_parser_site
+from .shortcut import execute as execute_shortcut
+from .shortcut import setup_parser as setup_parser_shortcut
 from .version import __version__
 
 
@@ -37,6 +39,15 @@ def cmk_dev_argument_parser() -> argparse.ArgumentParser:
     )
     setup_parser_install(parser_install)
     parser_install.set_defaults(func=execute_install)
+
+    parser_shortcut = subparsers.add_parser(
+        "install-site",
+        description="Shortcut for both installing and setting up the site",
+        help="Run install and site in one command",
+        aliases=["is"],
+    )
+    setup_parser_shortcut(parser_shortcut)
+    parser_shortcut.set_defaults(func=execute_shortcut)
 
     return parser
 

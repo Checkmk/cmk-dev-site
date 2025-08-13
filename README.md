@@ -24,6 +24,9 @@ pipx upgrade cmk-dev-site
 ## Usage
 
 ```
+cmk-dev install-site 2.5 # download package, install, create site for 2.5
+cmk-dev is 2.3 cme -d 1 # same as above, but managed edition and distributed monitoring
+
 # Download and install latest available daily build of 2.5.0
 cmk-dev install 2.5 && cmk-dev site
 # (will fall back to the daily builds of yesterday)
@@ -35,6 +38,12 @@ cmk-dev install 2.5.0-daily && cmk-dev site -d 1
 # Download and install raw edition package
 cmk-dev install --edition=cre 2.5.0-daily
 ```
+### `cmk-dev install-site` and `cmk-dev is`
+
+Is a shortcut for the more verbose `cmk-dev install` and `cmk-dev site`
+commands. This way you lose some of the possibilities, but only have to
+remember one command. Also prints out the commands that it will execute, so you
+can c&p it.
 
 ### `cmk-dev install`
 

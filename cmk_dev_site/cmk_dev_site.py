@@ -12,6 +12,7 @@ import logging
 import re
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -833,7 +834,7 @@ def execute(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
+def main(sys_argv: list[str] | None = None) -> int:
     """
     Main function to set up Checkmk site and handle distributed setup.
     Returns:
@@ -841,5 +842,5 @@ def main() -> int:
     """
     parser: argparse.ArgumentParser = create_parser()
     setup_parser(parser)
-    args = parser.parse_args()
+    args = parser.parse_args(sys_argv or sys.argv[1:])
     return execute(args)
