@@ -38,6 +38,7 @@ dev = [
 [project.scripts]
 cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
 cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
+cmk-dev = "cmk_dev_site.cmk_dev:main"
 
 [project.urls]
 Repository = "https://github.com/Checkmk/cmk-dev-site"

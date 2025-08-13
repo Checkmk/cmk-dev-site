@@ -542,9 +542,7 @@ class DevInstallArgs(argparse.Namespace):
     download_only: bool
 
 
-def setup_parser() -> argparse.ArgumentParser:
-    """Setup the argument parser for the script."""
-
+def create_parser() -> argparse.ArgumentParser:
     assert __doc__ is not None, "__doc__ must be a non-None string"
     prog, descr = __doc__.split("\n", 1)
 
@@ -554,6 +552,11 @@ def setup_parser() -> argparse.ArgumentParser:
         formatter_class=ArgFormatter,
     )
     parser.add_argument("--version", action="version", version=__version__)
+    return parser
+
+
+def setup_parser(parser: argparse.ArgumentParser) -> None:
+    """Setup the argument parser for the script."""
 
     parser.add_argument(
         "build",
@@ -608,8 +611,6 @@ latest branch that can be found.
         action="store_true",
         help="download only (do not install)",
     )
-
-    return parser
 
 
 @log(max_level=logging.DEBUG)
@@ -756,9 +757,7 @@ def core_logic(
     return installed_version, pkg_path
 
 
-def main() -> int:
-    parser = setup_parser()
-    args = parser.parse_args(namespace=DevInstallArgs)
+def execute(args: argparse.Namespace) -> int:
     logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
 
     try:
@@ -773,3 +772,11 @@ def main() -> int:
     if args.download_only:
         print(pkg_path)
     return 0
+
+
+def main() -> int:
+    parser = create_parser()
+    setup_parser(parser)
+
+    args = parser.parse_args(namespace=DevInstallArgs())
+    return execute(args)

@@ -136,6 +136,9 @@ def main() {
 
                     cmk-dev-install --help
                     cmk-dev-site --help
+                    cmk-dev install --help
+                    cmk-dev site --help
+                    cmk-dev --help
                 """);
             }
 

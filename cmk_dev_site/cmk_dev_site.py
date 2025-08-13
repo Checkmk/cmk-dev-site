@@ -530,9 +530,7 @@ class ArgFormatter(argparse.RawTextHelpFormatter):
     pass
 
 
-def setup_parser() -> argparse.ArgumentParser:
-    """Setup the argument parser for the script."""
-
+def create_parser() -> argparse.ArgumentParser:
     assert __doc__ is not None, "__doc__ must be a non-None string"
     prog, descr = __doc__.split("\n", 1)
 
@@ -542,6 +540,11 @@ def setup_parser() -> argparse.ArgumentParser:
         formatter_class=ArgFormatter,
     )
     parser.add_argument("--version", action="version", version=__version__)
+    return parser
+
+
+def setup_parser(parser: argparse.ArgumentParser) -> None:
+    """Setup the argument parser for the script."""
 
     parser.add_argument(
         "version",
@@ -594,8 +597,6 @@ def setup_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="force site setup from scratch, even if the site with same name and\nversion exists",
     )
-
-    return parser
 
 
 def find_version_by_site_name(site_name: str) -> str | None:
@@ -820,15 +821,7 @@ def core_logic(args: argparse.Namespace) -> None:
     central_site.discover_services()
 
 
-def main() -> int:
-    """
-    Main function to set up Checkmk site and handle distributed setup.
-    Returns:
-       int: Exit status code.
-    """
-    parser: argparse.ArgumentParser = setup_parser()
-    args = parser.parse_args()
-
+def execute(args: argparse.Namespace) -> int:
     try:
         logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
         core_logic(args)
@@ -838,3 +831,15 @@ def main() -> int:
         return 1
 
     return 0
+
+
+def main() -> int:
+    """
+    Main function to set up Checkmk site and handle distributed setup.
+    Returns:
+       int: Exit status code.
+    """
+    parser: argparse.ArgumentParser = create_parser()
+    setup_parser(parser)
+    args = parser.parse_args()
+    return execute(args)
