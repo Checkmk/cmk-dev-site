@@ -557,6 +557,7 @@ def setup_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "build",
+        metavar="version",
         type=parse_version,
         nargs="?",
         help=f"""specify the version in one of the following formats:
