@@ -53,11 +53,11 @@ def generate_log_decorator(
         def decorator(func: Callable[P, T]) -> Callable[P, T]:
             @functools.wraps(func)
             def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                formated_func_name = func.__name__.replace("_", " ").capitalize()
+                formatted_func_name = func.__name__.replace("_", " ").capitalize()
                 msg = (
                     message_info(*args, **kwargs)
                     if message_info
-                    else info_message or f"{formated_func_name}..."
+                    else info_message or f"{formatted_func_name}..."
                 )
 
                 msg = f"{prefix(*args, **kwargs) if prefix else ''}{msg}"

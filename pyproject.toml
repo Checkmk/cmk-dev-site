@@ -33,6 +33,7 @@ dev = [
     "ruff>=0.9.6",
     "twine>=6.1.0,<7",
     "snippets2changelog>=1.6.0,<2",
+    "types-requests>=2.32.4.20250809",
 ]
 
 [project.scripts]
@@ -58,7 +59,10 @@ ignore-vcs = true
 # Base configuration
 line-length = 100
 target-version = "py311"
+# Enable automatic fixes
+fix = true
 
+[tool.ruff.lint]
 # Enable recommended rules
 lint.select = [
     "F",    # Pyflakes
@@ -83,8 +87,6 @@ exclude = [
     "build",
 ]
 
-# Enable automatic fixes
-fix = true
 
 [tool.pyright]
 # Base configuration

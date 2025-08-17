@@ -617,7 +617,7 @@ latest branch that can be found.
 @log(max_level=logging.DEBUG)
 def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool) -> bool:
     """
-    Validate if the instllation should go through.
+    Validate if the installation should go through.
     """
     already_installed = (INSTALLATION_PATH / Path(cmk_pkg.omd_version)).exists()
 

@@ -685,7 +685,7 @@ def connect_central_to_remote(
 def add_user_to_sudoers() -> None:
     # TODO: duplicate code. this is also available as ./bin/omd-setup-site-for-dev
     # we also have to be able to call this as a standalone script to be able to
-    # f12 into sites not create with the offical tools
+    # f12 into sites not create with the official tools
     """Add the current user to the sudoers file."""
     username = getpass.getuser()
     sites = [
