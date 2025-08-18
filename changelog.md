@@ -17,6 +17,94 @@ r"^\#\# \[\d{1,}[.]\d{1,}[.]\d{1,}\] \- \d{4}\-\d{2}-\d{2}$"
 -->
 
 ## Released
+## [0.4.1] - 2025-08-18T12:36:24+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+previously the following error was visible when executed without sub command.
+
+```
+AttributeError: 'Namespace' object has no attribute 'func'
+```
+
+now the help is printed
+
+[0.4.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.4.1
+
+## [0.4.0] - 2025-08-18T08:21:29+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+Now `--name` is available to speficy the name of the site created with
+`cmk-dev site-install`.
+
+[0.4.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.4.0
+
+## [0.3.0] - 2025-08-14T08:52:11+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+`cmk-dev install-site` and its alias `cmk-dev is` is a shortcut wrapper around
+`cmk-dev install` and `cmk-dev site`. It can be used to install the version and
+create a site with one simple command.
+
+This also introduce the `cmk-dev` command which has currently three
+subcommands: `site`, `install`, `install-site`.
+
+[0.3.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.3.0
+
+## [0.2.5] - 2025-08-11T10:21:04+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+The `run_command` function is now wrapped by the caller module to automatically log both stdout and stderr for each command when debug logging is enabled via `-v`.
+
+[0.2.5]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.5
+
+## [0.2.4] - 2025-08-05T15:08:29+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+inline documentation instead
+
+[0.2.4]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.4
+
+## [0.2.3] - 2025-08-04T15:42:43+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+netstat is deprecated, fresh installs do not have netstat
+
+[0.2.3]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.3
+
+## [0.2.2] - 2025-08-04T15:42:37+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+failed in core logic
+
+[0.2.2]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.2
+
+## [0.2.1] - 2025-07-31T14:24:35+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+Moved toplevel python modules into cmk_dev_site module.
+
+This fixes
+
+```
+ModuleNotFoundError: No module named 'cmk'
+```
+
+[0.2.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.1
+
+## [0.2.0] - 2025-07-31T12:58:49+02:00
+<!-- meta = {'type': 'feature', 'scope': ['internal'], 'affected': ['all']} -->
+
+New modules for `rest_api`, omd version, and logging has been created to increase reuse.
+
+[0.2.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.0
+
+## [0.1.0] - 2025-07-15T10:40:06+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+Make `cmk-dev-site` package public
+
+[0.1.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.1.0
+
 ## [0.0.0] - 2025-07-14
 ### Added
 - Make `cmk-dev-site` public
