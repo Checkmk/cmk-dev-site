@@ -62,7 +62,6 @@ target-version = "py311"
 # Enable automatic fixes
 fix = true
 
-[tool.ruff.lint]
 # Enable recommended rules
 lint.select = [
     "F",    # Pyflakes
