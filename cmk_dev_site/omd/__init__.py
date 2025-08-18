@@ -166,7 +166,7 @@ class PartialCMKPackage:
 
 def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
     try:
-        subprocess.run(
+        result = subprocess.run(
             [
                 "sudo",
                 "omd",
@@ -184,6 +184,9 @@ def omd_config_set(site_name: str, config_key: str, config_value: str) -> None:
             f"Could not set configuration {config_key} to {config_value} "
             f"for site {site_name}\n{e.stderr}"
         ) from e
+
+    if result.stderr:
+        raise RuntimeError(result.stderr.decode("utf-8").strip())
 
 
 def omd_config_get(site_name: str, param: str) -> str | None:

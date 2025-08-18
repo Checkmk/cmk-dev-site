@@ -160,13 +160,13 @@ class Site:
             )
 
     @log(prefix=_prefix_log_site)
-    def configure_site(self) -> None:
+    def configure_site(self, configs: list[tuple[str, str]]) -> None:
         try:
-            if self.cmk_pkg.base_version == "2.1.0":
+            if self.cmk_pkg.base_version == "2.1.0" and "MKEVENTD" not in dict(configs):
                 omd_config_set(self.name, "MKEVENTD", "on")
 
-            # TODO: EC_SYSLOG is should be taken care of in the future if this would be default
-            omd_config_set(self.name, "LIVESTATUS_TCP", "on")
+            if "LIVESTATUS_TCP" not in dict(configs):
+                omd_config_set(self.name, "LIVESTATUS_TCP", "on")
 
         except RuntimeError as e:
             logger.warning(
@@ -174,6 +174,18 @@ class Site:
                 colorize(self.name, "yellow"),
                 e,
             )
+
+        for key, value in configs:
+            try:
+                omd_config_set(self.name, key, value)
+            except RuntimeError as e:
+                logger.warning(
+                    "[%s]: Failed to set option %s=%s. %s",
+                    colorize(self.name, "yellow"),
+                    key,
+                    value,
+                    e,
+                )
 
     @log(prefix=_prefix_log_site)
     def start_site(self, api: "APIClient") -> None:
@@ -599,6 +611,24 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         help="force site setup from scratch, even if the site with same name and\nversion exists",
     )
 
+    parser.add_argument(
+        "--omd-configs",
+        nargs="*",
+        type=parse_config,
+        help="list of valid key=value pairs for omd config (e.g. LIVESTATUS_TCP=on)",
+        default=[],
+    )
+
+
+def parse_config(config: str) -> tuple[str, str]:
+    """
+    Parse a key=value option from the command line.
+    """
+    if "=" not in config:
+        raise argparse.ArgumentTypeError(f"Invalid option format: {config}. Expected key=value.")
+    key, value = config.split("=", 1)
+    return key.strip(), value.strip()
+
 
 def find_version_by_site_name(site_name: str) -> str | None:
     """
@@ -622,13 +652,13 @@ def ensure_sudo() -> None:
     run_command(["sudo", "-v"], error_message="Failed to acquire sudo privileges.")
 
 
-def handle_site_creation(site: Site, force: bool) -> None:
+def handle_site_creation(site: Site, force: bool, configs: list[tuple[str, str]]) -> None:
     existing_site_version = find_version_by_site_name(site.name)
 
     if not existing_site_version or existing_site_version != str(site.cmk_pkg) or force:
         site.delete_site()
         site.create_site()
-        site.configure_site()
+        site.configure_site(configs)
 
     else:
         logger.warning(
@@ -759,13 +789,13 @@ def core_logic(args: argparse.Namespace) -> None:
     validate_installation(cmk_pkg)
 
     central_site = Site(site_name, cmk_pkg)
-    handle_site_creation(central_site, args.force)
+    handle_site_creation(central_site, args.force, args.omd_configs)
 
     # Distributed setup
     remote_sites: list[Site] = []
     for number in range(1, args.distributed + 1):
         remote_site = Site(f"{central_site.name}_r{number}", config.cmk_pkg, is_remote=True)
-        handle_site_creation(remote_site, config.force)
+        handle_site_creation(remote_site, config.force, args.omd_configs)
         remote_sites.append(remote_site)
 
     if central_site.cmk_pkg.base_version >= BaseVersion(2, 4):
