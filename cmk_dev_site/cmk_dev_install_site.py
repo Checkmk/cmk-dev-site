@@ -6,6 +6,7 @@ from .cmk_dev_install import Edition
 from .cmk_dev_install import main as cmk_dev_install
 from .cmk_dev_site import main as cmk_dev_site
 from .utils.log import get_logger
+from .version import __version__
 
 logger = get_logger(__name__)
 
@@ -80,7 +81,7 @@ def site_args(distributed: int, arg_logging_level: str, name: str | None) -> Ite
         yield arg_logging_level
 
 
-def main(
+def core(
     version: str | None,
     edition: str | None,
     *,
@@ -100,10 +101,10 @@ def main(
     args_site = list(site_args(site_distributed, arg_logging_level, site_name))
 
     print(
-        "cmk-dev install",
+        "cmk-dev-install",
         " ".join(args_install),
         "&&",
-        "cmk-dev site",
+        "cmk-dev-site",
         " ".join(args_site),
     )
 
@@ -118,7 +119,7 @@ def main(
 def execute(args: argparse.Namespace) -> int:
     try:
         logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
-        return main(
+        return core(
             args.version,
             args.edition,
             site_distributed=args.distributed,
@@ -131,3 +132,17 @@ def execute(args: argparse.Namespace) -> int:
         logger.error(str(e))
         return 1
     return 0
+
+
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version=__version__)
+    return parser
+
+
+def main(sys_argv: list[str] | None = None) -> int:
+    parser = create_parser()
+    setup_parser(parser)
+
+    args = parser.parse_args()
+    return execute(args)
