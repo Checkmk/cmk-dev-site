@@ -24,42 +24,41 @@ pipx upgrade cmk-dev-site
 ## Usage
 
 ```
-cmk-dev install-site 2.5 # download package, install, create site for 2.5
-cmk-dev is 2.3 cme -d 1 # same as above, but managed edition and distributed monitoring
+cmk-dev-install-site 2.5 # download package, install, create site for 2.5
 
 # Download and install latest available daily build of 2.5.0
-cmk-dev install 2.5 && cmk-dev site
+cmk-dev-install 2.5 && cmk-dev-site
 # (will fall back to the daily builds of yesterday)
 
 # Download daily build of today and
 # setup distributed monitoring with one two sites:
-cmk-dev install 2.5.0-daily && cmk-dev site -d 1
+cmk-dev-install 2.5.0-daily && cmk-dev-site -d 1
 
 # Download and install raw edition package
-cmk-dev install --edition=cre 2.5.0-daily
+cmk-dev-install --edition=cre 2.5.0-daily
 ```
-### `cmk-dev install-site` and `cmk-dev is`
+### `cmk-dev-install-site`
 
-Is a shortcut for the more verbose `cmk-dev install` and `cmk-dev site`
+Is a shortcut for the more verbose `cmk-dev-install` and `cmk-dev-site`
 commands. This way you lose some of the possibilities, but only have to
 remember one command. Also prints out the commands that it will execute, so you
 can c&p it.
 
-### `cmk-dev install`
+### `cmk-dev-install`
 
 Will download the requested package of Checkmk and install said package.
 
-You might request a daily build (`cmk-dev install 2.5.0-daily`),
-the latest available daily build (handy if there are no daily builds of today) (`cmk-dev install 2.5`),
-or an officially release Checkmk version (`cmk-dev install 2.4.0p9`).
+You might request a daily build (`cmk-dev-install 2.5.0-daily`),
+the latest available daily build (handy if there are no daily builds of today) (`cmk-dev-install 2.5`),
+or an officially release Checkmk version (`cmk-dev-install 2.4.0p9`).
 
-Please check the built in help (`cmk-dev install --help`) for all options!
+Please check the built in help (`cmk-dev-install --help`) for all options!
 
-### `cmk-dev site`
+### `cmk-dev-site`
 
 Will create a site, install the checkmk agent, and add a single host to the site.
 
-`cmk-dev site` uses [omd
+`cmk-dev-site` uses [omd
 commands](https://docs.checkmk.com/latest/en/omd_basics.html) and the official
 [REST-API](https://docs.checkmk.com/latest/en/rest_api.html) to create one or
 multiple sites based on the current default omd version (or the version
@@ -67,7 +66,7 @@ specified on the command line).
 
 You might use `-d 1` to create a distributed monitoring with one distributed site.
 
-Please check the built in help (`cmk-dev site --help`) for all options!
+Please check the built in help (`cmk-dev-site --help`) for all options!
 
 ### Cleanup
 

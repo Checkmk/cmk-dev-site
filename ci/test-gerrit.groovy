@@ -136,13 +136,8 @@ def main() {
 
                     cmk-dev-install --help
                     cmk-dev-site --help
-                    cmk-dev install --help
-                    cmk-dev site --help
-                    cmk-dev
-                    cmk-dev --help
-                    cmk-dev is --help
-                    cmk-dev install-site --help
-                    cmk-dev install-site 2.5 cre --dryrun
+                    cmk-dev-install-site --help
+                    cmk-dev-install-site 2.5 cre --dryrun
                 """);
             }
 
