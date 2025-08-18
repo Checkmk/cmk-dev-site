@@ -91,12 +91,7 @@ def generate_log_decorator(
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug("%s returned: %s", colorize(func.__name__, "cyan"), result)
                     elif max_level >= logging.INFO:
-                        msg = (
-                            f"{msg}{colorize('OK', 'green')}"
-                            if result is None
-                            else f"{msg}-> {colorize(str(result), 'green')}"
-                        )
-                        logger.info("%s", msg)
+                        logger.info("%s", f"{msg}{colorize('OK', 'green')}")
 
                     return result
 

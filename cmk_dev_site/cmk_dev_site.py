@@ -747,7 +747,7 @@ def ensure_host_exists(
         api.create_host(host_name=host_name)
 
 
-@log()
+@log(max_level=logging.DEBUG)
 def core_logic(args: argparse.Namespace) -> None:
     """Main business logic separated from error handling."""
 
@@ -820,6 +820,12 @@ def core_logic(args: argparse.Namespace) -> None:
 
     central_site.trigger_site_checking_cycle()
     central_site.discover_services()
+
+    logger.info(
+        "[%s]: Happy hacking: %s ",
+        colorize(central_site.name, "green"),
+        colorize(f"http://localhost/{central_site.name}/check_mk", "blue"),
+    )
 
 
 def execute(args: argparse.Namespace) -> int:
