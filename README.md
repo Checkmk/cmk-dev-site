@@ -74,8 +74,9 @@ Please check the built in help (`cmk-dev site --help`) for all options!
 Currently there is no public available tool to completely cleanup sites and
 packages create with the presented tools. If you are a Checkmk developer you
 might make use of the internal tool `omd-hauweg`, otherwise you have to
-manually remove the sites using `omd rm` and uninstall the packages using `apt
-purge`.
+manually remove the sites using `omd rm`.
+For uninstall packages that are no longer in use you can use `omd cleanup`,
+or you might fall back to use `apt purge`.
 
 ## Contributing
 
