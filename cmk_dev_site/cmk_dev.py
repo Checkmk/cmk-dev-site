@@ -20,6 +20,11 @@ def cmk_dev_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=__version__)
 
+    def parser_print_help(_args: argparse.Namespace):
+        parser.print_help()
+
+    parser.set_defaults(func=parser_print_help)
+
     subparsers = parser.add_subparsers()
 
     parser_site = subparsers.add_parser(
