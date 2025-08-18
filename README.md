@@ -81,5 +81,5 @@ or you might fall back to use `apt purge`.
 ## Contributing
 
 If you'd like to make contributions to the tool, check out our
-[development documentation](DEVELOPMENT.md). Here you'll see
-steps on how to setup your environment for local development.
+[development documentation](https://github.com/Checkmk/cmk-dev-site/blob/main/DEVELOPMENT.md).
+Here you'll see steps on how to setup your environment for local development.
