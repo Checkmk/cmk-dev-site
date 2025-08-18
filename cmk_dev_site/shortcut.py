@@ -32,6 +32,11 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         default=0,
     )
     parser.add_argument(
+        "-n",
+        "--name",
+        help="specify name of the site to be created",
+    )
+    parser.add_argument(
         "--dryrun",
         help="only print command, but do not execute",
         action="store_true",
@@ -63,10 +68,13 @@ def install_args(version: str | None, edition: str | None, arg_logging_level: st
         yield arg_logging_level
 
 
-def site_args(distributed: int, arg_logging_level: str) -> Iterator[str]:
+def site_args(distributed: int, arg_logging_level: str, name: str | None) -> Iterator[str]:
     if distributed:
         yield "--distributed"
         yield str(distributed)
+    if name:
+        yield "--name"
+        yield name
     yield "-f"
     if arg_logging_level:
         yield arg_logging_level
@@ -76,7 +84,8 @@ def main(
     version: str | None,
     edition: str | None,
     *,
-    distributed: int,
+    site_distributed: int,
+    site_name: str | None,
     dryrun: bool,
     verbose: int,
     quiet: int,
@@ -88,7 +97,7 @@ def main(
         arg_logging_level = f"-{''.join(['v' * verbose, 'q' * quiet])}"
 
     args_install = list(install_args(version, edition, arg_logging_level))
-    args_site = list(site_args(distributed, arg_logging_level))
+    args_site = list(site_args(site_distributed, arg_logging_level, site_name))
 
     print(
         "cmk-dev install",
@@ -112,7 +121,8 @@ def execute(args: argparse.Namespace) -> int:
         return main(
             args.version,
             args.edition,
-            distributed=args.distributed,
+            site_distributed=args.distributed,
+            site_name=args.name,
             dryrun=args.dryrun,
             verbose=args.verbose,
             quiet=args.quiet,
