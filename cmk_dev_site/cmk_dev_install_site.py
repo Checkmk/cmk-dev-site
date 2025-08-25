@@ -64,7 +64,6 @@ def install_args(version: str | None, edition: str | None, arg_logging_level: st
         if edition:
             yield "--edition"
             yield str(edition)
-    yield "-f"
     if arg_logging_level:
         yield arg_logging_level
 
