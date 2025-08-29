@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import shutil
+import socket
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -309,7 +310,7 @@ class FileServer:
         return [vs for vs in self._query_available_versions(url) if vs.base_version == base_version]
 
     @log()
-    def query_latest_base_version(self, *urls: str) -> BaseVersion:
+    def query_latest_base_version(self, urls: list[str]) -> BaseVersion:
         # if we have no version *at all*, this raises.
         return max(
             (v.base_version for url in urls for v in self._query_available_versions(url)),
@@ -653,11 +654,10 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
 
 def download_and_install_cmk_pkg(
     file_server: FileServer,
-    base_url: str,
+    urls: list[str],
     cmk_pkg: CMKPackage,
     force: bool,
     download_only: bool,
-    alternative_base_url: str | None = None,
 ) -> CMKPackage:
     """
     Download and install a Checkmk package.
@@ -667,26 +667,35 @@ def download_and_install_cmk_pkg(
         return cmk_pkg
 
     download_path = DOWNLOAD_DIR / cmk_pkg.package_name
-    url = build_download_url(base_url, cmk_pkg)
+    valid_url = None
+    for url in urls:
+        logger.debug(f"Checking URL: {url}")
+        pkg_url = build_download_url(url, cmk_pkg)
 
-    if not file_server.url_exists(url):
-        logger.warning(
-            f"Version {cmk_pkg} not found in the download server. Trying tstbuilds server."
-        )
-        if alternative_base_url is None:
-            raise RuntimeError("Download URL not found.")
+        if not file_server.url_exists(pkg_url):
+            logger.warning(f"Version {cmk_pkg} not found in the download server {url}")
         else:
-            url = build_download_url(alternative_base_url, cmk_pkg)
+            valid_url = pkg_url
+
+    if valid_url is None:
+        raise RuntimeError("Download URL not found.")
     file_server.download_package(
-        url=url,
+        url=valid_url,
         download_path=download_path,
     )
-    if not (file_server.verify_hash(build_download_url(base_url, cmk_pkg), download_path)):
+    if not (file_server.verify_hash(valid_url, download_path)):
         raise RuntimeError("ERROR: Hash verification failed.")
     if not download_only:
         remove_package(cmk_pkg.package_raw_name, INSTALLATION_PATH / Path(cmk_pkg.omd_version))
         install_package(download_path)
     return cmk_pkg
+
+
+@log()
+def is_on_vpn() -> bool:
+    hostname = TSBUILD_URL.replace("https://", "").split("/")[0]
+    resolved_ip = socket.gethostbyname(hostname)
+    return resolved_ip != "45.133.11.62"
 
 
 @log(max_level=logging.DEBUG)
@@ -704,6 +713,11 @@ def core_logic(
     """
     if not download_only:
         ensure_sudo()
+    if is_on_vpn() is False:
+        logger.warning("You are not on the VPN, tstbuilds might not be reachable.")
+        download_urls = [CMK_DOWNLOAD_URL]
+    else:
+        download_urls = [CMK_DOWNLOAD_URL, TSBUILD_URL]
     user, password = get_user_pass()
     file_server = FileServer(user=user, password=password)
     distro = get_distro_version_info()
@@ -720,20 +734,17 @@ def core_logic(
             cmk_pkg = find_last_release(file_server, version, edition, distro.version_codename)
             cmk_pkg = download_and_install_cmk_pkg(
                 file_server=file_server,
-                base_url=CMK_DOWNLOAD_URL,
+                urls=download_urls,
                 cmk_pkg=cmk_pkg,
                 force=force,
                 download_only=download_only,
-                alternative_base_url=TSBUILD_URL,
             )
             pkg_path = DOWNLOAD_DIR / cmk_pkg.package_name
             installed_version = cmk_pkg.omd_version
         case _:
             if version is None:
                 version = VersionWithReleaseDate(
-                    base_version=file_server.query_latest_base_version(
-                        CMK_DOWNLOAD_URL, TSBUILD_URL
-                    ),
+                    base_version=file_server.query_latest_base_version(download_urls),
                     release_date=datetime.today().date(),
                 )
             cmk_pkg = CMKPackage(
@@ -743,11 +754,10 @@ def core_logic(
             )
             cmk_pkg = download_and_install_cmk_pkg(
                 file_server=file_server,
-                base_url=CMK_DOWNLOAD_URL,
+                urls=download_urls,
                 cmk_pkg=cmk_pkg,
                 force=force,
                 download_only=download_only,
-                alternative_base_url=TSBUILD_URL,
             )
             pkg_path = DOWNLOAD_DIR / cmk_pkg.package_name
             installed_version = cmk_pkg.omd_version
