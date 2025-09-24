@@ -17,6 +17,7 @@ user:password (please follow the instructions https://wiki.lan.checkmk.net/x/aYU
 import argparse
 import getpass
 import hashlib
+import http.client
 import json
 import logging
 import re
@@ -782,6 +783,17 @@ def core_logic(
 
 def execute(args: argparse.Namespace) -> int:
     logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
+
+    if args.verbose - args.quiet > 3:
+        # disable the custom logging, otherwise we see all messages twice
+        logger.removeHandler(logger.handlers[0])
+        logging.basicConfig(level=logging.DEBUG)
+        logger_urllib = logging.getLogger("requests.packages.urllib3")
+        logger_urllib.setLevel(logging.DEBUG)
+        logger_urllib.propagate = True
+
+    if args.verbose - args.quiet > 4:
+        http.client.HTTPConnection.debuglevel = 1
 
     try:
         installed_version, pkg_path = core_logic(
