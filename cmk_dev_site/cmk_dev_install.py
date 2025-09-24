@@ -757,7 +757,9 @@ def core_logic(
         case _:
             if version is None:
                 version = VersionWithReleaseDate(
-                    base_version=file_server.query_latest_base_version(download_urls),
+                    base_version=file_server.query_latest_base_version(
+                        [f"{u}/" for u in download_urls]
+                    ),
                     release_date=datetime.today().date(),
                 )
             cmk_pkg = CMKPackage(
