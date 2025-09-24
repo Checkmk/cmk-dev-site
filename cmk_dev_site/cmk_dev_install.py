@@ -24,6 +24,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -283,6 +284,7 @@ class FileServer:
         :param download_path: The local path where the package will be saved.
         """
 
+        start = time.monotonic()
         response = self._get(
             url,
             stream=True,
@@ -295,7 +297,8 @@ class FileServer:
                 file.write(chunk)
                 downloaded += len(chunk)
                 progress = (downloaded / file_size) * 100
-                logger.progress(f"Downloading... {progress:.2f}%")
+                download_rate = downloaded / 1024 / 1024 / (time.monotonic() - start)
+                logger.progress(f"Downloading... {progress:.2f}% ({download_rate:.2f} MB/s)")
 
     def _query_available_versions(self, url: str) -> Sequence[VersionWithReleaseDate]:
         response = self._get(url)
