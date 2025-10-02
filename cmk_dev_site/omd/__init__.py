@@ -75,6 +75,22 @@ class VersionWithPatch(BaseVersion):
         return self.__str__()
 
 
+class VersionWithReleaseCandidate(BaseVersion):
+    def __init__(
+        self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int, rc: int
+    ):
+        self.base_version = base_version
+        self.patch_type = patch_type
+        self.patch = patch
+        self.rc = rc
+
+    def __str__(self) -> str:
+        return f"{self.base_version}{self.patch_type}{self.patch}-rc{self.rc}"
+
+    def iso_format(self) -> str:
+        return self.__str__()
+
+
 class VersionWithReleaseDate(BaseVersion):
     def __init__(self, base_version: BaseVersion, release_date: date):
         self.base_version = base_version
@@ -105,7 +121,14 @@ class GitVersion:
         return f"git:{self.branch}:{self.commit_hash}"
 
 
-Version = BaseVersion | VersionWithPatch | VersionWithReleaseDate | PartialVersion | GitVersion
+Version = (
+    BaseVersion
+    | VersionWithPatch
+    | VersionWithReleaseDate
+    | PartialVersion
+    | GitVersion
+    | VersionWithReleaseCandidate
+)
 
 
 class CMKPackage:
@@ -113,7 +136,10 @@ class CMKPackage:
 
     def __init__(
         self,
-        version: VersionWithPatch | VersionWithReleaseDate | BaseVersion,
+        version: VersionWithPatch
+        | VersionWithReleaseDate
+        | BaseVersion
+        | VersionWithReleaseCandidate,
         edition: Edition,
         distro_codename: str = "noble",
         arch: str = "amd64",
@@ -131,7 +157,14 @@ class CMKPackage:
     @property
     def package_raw_name(self) -> str:
         """Get the package name."""
-        return f"check-mk-{self.edition.name.lower()}-{self.version}"
+        raw_name = f"check-mk-{self.edition.name.lower()}-"
+        if isinstance(self.version, VersionWithReleaseCandidate):
+            return (
+                raw_name
+                + f"{self.version.base_version}{self.version.patch_type}{self.version.patch}"
+            )
+        else:
+            return raw_name + f"{self.version}"
 
     @property
     def package_name(self) -> str:
@@ -145,6 +178,10 @@ class CMKPackage:
             case VersionWithPatch(base_version=base_version, patch_type=_, patch=_):
                 return base_version
             case VersionWithReleaseDate(base_version=base_version, release_date=_):
+                return base_version
+            case VersionWithReleaseCandidate(
+                base_version=base_version, patch_type=_, patch=_, rc=_
+            ):
                 return base_version
             case BaseVersion():
                 return self.version
