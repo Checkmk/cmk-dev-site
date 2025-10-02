@@ -43,6 +43,7 @@ from .omd import (
     PartialVersion,
     Version,
     VersionWithPatch,
+    VersionWithReleaseCandidate,
     VersionWithReleaseDate,
 )
 from .utils import run_command as run_command_c
@@ -191,6 +192,13 @@ def parse_version(
             patch=int(match.group(3)),
         )
 
+    if match := re.match(r"^(\d+\.\d+(?:\.\d+)?)(p|b)(\d+)-rc(\d+)$", version):
+        return VersionWithReleaseCandidate(
+            base_version=BaseVersion.from_str(match.group(1)),
+            patch_type="p" if match.group(2) == "p" else "b",
+            patch=int(match.group(3)),
+            rc=int(match.group(4)),
+        )
     if match := re.match(r"^git:(.+?):(.+?)$", version):
         return GitVersion(
             branch=match.group(1),
