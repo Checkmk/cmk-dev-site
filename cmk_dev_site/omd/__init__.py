@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
+from typing_extensions import override
 
 
 class Edition(StrEnum):
@@ -61,6 +62,11 @@ class BaseVersion:
         """Return the version in ISO format."""
         return self.__str__()
 
+    @property
+    def download_folder_name(self) -> str:
+        """Get the download folder name for this version."""
+        return self.__str__()
+
 
 class VersionWithPatch(BaseVersion):
     def __init__(self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int):
@@ -73,6 +79,27 @@ class VersionWithPatch(BaseVersion):
 
     def iso_format(self) -> str:
         return self.__str__()
+
+
+class VersionWithReleaseCandidate(BaseVersion):
+    def __init__(
+        self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int, rc: int
+    ):
+        self.base_version = base_version
+        self.patch_type = patch_type
+        self.patch = patch
+        self.rc = rc
+
+    def __str__(self) -> str:
+        return f"{self.base_version}{self.patch_type}{self.patch}"
+
+    def iso_format(self) -> str:
+        return self.__str__()
+
+    @property
+    @override
+    def download_folder_name(self) -> str:
+        return f"{self.base_version}{self.patch_type}{self.patch}-rc{self.rc}"
 
 
 class VersionWithReleaseDate(BaseVersion):
@@ -105,7 +132,14 @@ class GitVersion:
         return f"git:{self.branch}:{self.commit_hash}"
 
 
-Version = BaseVersion | VersionWithPatch | VersionWithReleaseDate | PartialVersion | GitVersion
+Version = (
+    BaseVersion
+    | VersionWithPatch
+    | VersionWithReleaseDate
+    | PartialVersion
+    | GitVersion
+    | VersionWithReleaseCandidate
+)
 
 
 class CMKPackage:
@@ -113,7 +147,10 @@ class CMKPackage:
 
     def __init__(
         self,
-        version: VersionWithPatch | VersionWithReleaseDate | BaseVersion,
+        version: VersionWithPatch
+        | VersionWithReleaseDate
+        | BaseVersion
+        | VersionWithReleaseCandidate,
         edition: Edition,
         distro_codename: str = "noble",
         arch: str = "amd64",
@@ -131,7 +168,11 @@ class CMKPackage:
     @property
     def package_raw_name(self) -> str:
         """Get the package name."""
-        return f"check-mk-{self.edition.name.lower()}-{self.version}"
+        base = f"check-mk-{self.edition.name.lower()}-"
+        if isinstance(self.version, VersionWithReleaseCandidate):
+            return f"{base}{self.version.base_version}{self.version.patch_type}{self.version.patch}"
+        else:
+            return f"{base}{self.version}"
 
     @property
     def package_name(self) -> str:
@@ -145,6 +186,10 @@ class CMKPackage:
             case VersionWithPatch(base_version=base_version, patch_type=_, patch=_):
                 return base_version
             case VersionWithReleaseDate(base_version=base_version, release_date=_):
+                return base_version
+            case VersionWithReleaseCandidate(
+                base_version=base_version, patch_type=_, patch=_, rc=_
+            ):
                 return base_version
             case BaseVersion():
                 return self.version
