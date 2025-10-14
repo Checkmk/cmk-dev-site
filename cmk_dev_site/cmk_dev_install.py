@@ -417,7 +417,7 @@ def build_install_git_version(
         [
             "ci-artifacts",
             "fetch",
-            f"checkmk/{branch}/builders/build-cmk-distro-package",
+            f"checkmk/{branch}/builders/trigger-cmk-distro-package",
             "--out-dir",
             "/tmp/",
             "--no-remove-others",
