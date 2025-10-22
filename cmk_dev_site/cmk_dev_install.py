@@ -450,6 +450,7 @@ def build_install_git_version(
 
 @log(show_result=True)
 def find_last_release(
+    download_urls: list[str],
     file_server: FileServer,
     base_version: BaseVersion,
     edition: Edition,
@@ -459,13 +460,10 @@ def find_last_release(
     Find the last release date for a version.
     """
     url_version_date = [
-        (CMK_DOWNLOAD_URL, v_date)
-        for v_date in file_server.list_versions_with_date(CMK_DOWNLOAD_URL, base_version)
-    ] + [
-        (TSBUILD_URL, v_date)
-        for v_date in file_server.list_versions_with_date(TSBUILD_URL, base_version)
+        (url, v_date)
+        for url in download_urls
+        for v_date in file_server.list_versions_with_date(url, base_version)
     ]
-
     url_version_date.sort(key=lambda p: p[1].release_date, reverse=True)
 
     for url, version_date in url_version_date:
@@ -752,7 +750,9 @@ def core_logic(
             installed_version = get_default_version()
 
         case PartialVersion():
-            cmk_pkg = find_last_release(file_server, version, edition, distro.version_codename)
+            cmk_pkg = find_last_release(
+                download_urls, file_server, version, edition, distro.version_codename
+            )
             cmk_pkg = download_and_install_cmk_pkg(
                 file_server=file_server,
                 urls=download_urls,
