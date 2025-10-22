@@ -38,6 +38,7 @@ def generate_log_decorator(
         message_info: Callable[P, str] | None = None,
         prefix: Callable[P, str] | None = None,
         max_level: int = logging.INFO,
+        show_result: bool = False,
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         """Decorator for logging function calls, handling errors with optional warnings
 
@@ -91,7 +92,10 @@ def generate_log_decorator(
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug("%s returned: %s", colorize(func.__name__, "cyan"), result)
                     elif max_level >= logging.INFO:
-                        logger.info("%s", f"{msg}{colorize('OK', 'green')}")
+                        if show_result:
+                            logger.info("%s", f"{msg}{colorize(str(result), 'green')}")
+                        else:
+                            logger.info("%s", f"{msg}{colorize('OK', 'green')}")
 
                     return result
 

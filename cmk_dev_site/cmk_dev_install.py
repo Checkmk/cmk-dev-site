@@ -328,7 +328,7 @@ class FileServer:
             (v.base_version for url in urls for v in self._query_available_versions(url)),
         )
 
-    @log()
+    @log(max_level=logging.DEBUG)
     def url_exists(self, url: str) -> bool:
         response = self._session.head(
             url,
@@ -448,7 +448,7 @@ def build_install_git_version(
     return Path("/tmp", filtered_artifacts[0])
 
 
-@log()
+@log(show_result=True)
 def find_last_release(
     file_server: FileServer,
     base_version: BaseVersion,
