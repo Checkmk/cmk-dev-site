@@ -388,13 +388,7 @@ def download_and_install_agent(api: "APIClient") -> None:
 
 
 def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
-    # has to be called after the sites have been completely set up, but before starting the sites.
-    port = parse_int(omd_config_get(central_site.name, "TRACE_RECEIVE_PORT"))
-    if port is None:
-        raise RuntimeError("Failed to read the TRACE_RECEIVE_PORT for the central site")
-
     # we assume that central_site and remote_sites share the same config and version
-
     if (
         central_site.cmk_pkg.base_version < BaseVersion(2, 4, 0)
         or central_site.cmk_pkg.edition == Edition.SAAS
@@ -405,6 +399,11 @@ def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
             colorize(str(central_site.cmk_pkg.version), "yellow"),
         )
         return
+
+    # has to be called after the sites have been completely set up, but before starting the sites.
+    port = parse_int(omd_config_get(central_site.name, "TRACE_RECEIVE_PORT"))
+    if port is None:
+        raise RuntimeError("Failed to read the TRACE_RECEIVE_PORT for the central site")
 
     for remote_site in remote_sites:
         omd_config_set(remote_site.name, "TRACE_SEND_TARGET", f"http://localhost:{port}")
