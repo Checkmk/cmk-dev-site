@@ -55,6 +55,7 @@ class ConfigurationConnection(TypedDict):
     replicate_event_console: bool
     replicate_extensions: bool
     message_broker_port: NotRequired[int]
+    is_trusted: bool
 
 
 class RemoteSiteConnectionConfig(TypedDict):

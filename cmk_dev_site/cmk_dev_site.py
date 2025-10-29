@@ -265,6 +265,7 @@ class Site:
                 "user_sync": {"sync_with_ldap_connections": "disabled"},
                 "replicate_event_console": True,
                 "replicate_extensions": False,
+                "is_trusted": False,
             },
         }
         if message_broker_port:
