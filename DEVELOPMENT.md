@@ -62,9 +62,7 @@ If the change is based on a Jira ticket, use the Jira ticket name as snippet
 name otherwise use a unique name.
 
 ```sh
-uv run \
-    changelog-generator \
-    create .snippets/CMK-24265.md
+uv run changelog-generator create .snippets/CMK-24265.md
 ```
 
 After committing the snippet a changelog can be generated locally for testing purposes. For CI usage the `--in-place` flag is recommended to use as it will update the existing changelog with the collected snippets. For local usage remember to reset the changelog file before a second run, as the version would be updated recursively due to the way the changelog generator is working. It extracts the latest version from the changelog file and puts the found snippets on top.
