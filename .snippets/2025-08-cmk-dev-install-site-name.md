@@ -5,5 +5,5 @@ scope: all
 affected: all
 -->
 
-Now `--name` is available to speficy the name of the site created with
+Now `--name` is available to specify the name of the site created with
 `cmk-dev site-install`.

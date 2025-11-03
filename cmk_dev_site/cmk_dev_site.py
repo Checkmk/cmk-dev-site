@@ -800,7 +800,11 @@ def core_logic(args: argparse.Namespace) -> None:
         remote_sites.append(remote_site)
 
     if central_site.cmk_pkg.base_version >= BaseVersion(2, 4):
-        configure_tracing(central_site, remote_sites)
+        try:
+            configure_tracing(central_site, remote_sites)
+        except RuntimeError:
+            logger.warning("could not configure tracing")
+            pass
 
     api = APIClient(site_name=site_name)
     central_site.start_site(api)
