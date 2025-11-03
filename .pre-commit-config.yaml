@@ -1,18 +1,18 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.9
+    rev: v0.14.3
     hooks:
     -   id: ruff
         args: [ --fix ]
     -   id: ruff-format
 -   repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.379
+    rev: v1.1.407
     hooks:
     -   id: pyright
 -   repo: https://github.com/gitleaks/gitleaks
@@ -20,6 +20,6 @@ repos:
     hooks:
     -   id: gitleaks
 -   repo: https://github.com/crate-ci/typos
-    rev: v1.23.5
+    rev: v1.39.0
     hooks:
     -   id: typos
