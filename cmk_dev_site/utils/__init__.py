@@ -1,9 +1,9 @@
 import logging
+import socket
 import subprocess
 from collections.abc import Sequence
-from typing import (
-    Any,
-)
+from pathlib import Path
+from typing import Any
 
 from .log import colorize
 
@@ -40,3 +40,18 @@ def run_command(
                 logger.warning(error_message)
 
     return result
+
+
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def create_root_owned_file(file: Path) -> None:
+    run_command(["sudo", "mkdir", "-p", file.parent.absolute().as_posix()])
+    run_command(["sudo", "touch", file.absolute().as_posix()])
+    run_command(["sudo", "chmod", "0666", file.absolute().as_posix()])
