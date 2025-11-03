@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
+
 from typing_extensions import override
 
 
