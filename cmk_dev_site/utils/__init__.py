@@ -1,9 +1,9 @@
 import logging
+import socket
 import subprocess
 from collections.abc import Sequence
-from typing import (
-    Any,
-)
+from pathlib import Path
+from typing import Any
 
 from .log import colorize
 
@@ -40,3 +40,38 @@ def run_command(
                 logger.warning(error_message)
 
     return result
+
+
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def write_root_owned_file(path: Path, content: str, permissions: str = "0666") -> None:
+    """Write content to a root-owned file with specified permissions.
+
+    Creates the parent directory if needed, writes the content via sudo,
+    and sets the specified permissions. Content is piped through sudo
+    to ensure secure writing regardless of permission settings.
+
+    Args:
+        path: Path to the file to create/write
+        content: String content to write to the file
+        permissions: Octal permission string (default: "0666" for world-writable)
+    """
+    # Create parent directory if needed
+    run_command(["sudo", "mkdir", "-p", str(path.parent)])
+
+    # Write content via sudo using tee (silent output)
+    run_command(
+        ["sudo", "tee", str(path)],
+        input=content,
+        silent=True,
+    )
+
+    # Set permissions
+    run_command(["sudo", "chmod", permissions, str(path)])

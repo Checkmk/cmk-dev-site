@@ -24,6 +24,10 @@ classifiers = [
 dependencies = [
   "requests",
   "checkmk-dev-tools>=0.10.1,<1",
+  "pyjwt[crypto]",
+  "fastapi", # absolute minimum fastapi
+  "uvicorn", # ASGI worker
+  "python-multipart>=0.0.20", # needed for form data
 ]
 
 [dependency-groups]
@@ -40,6 +44,7 @@ dev = [
 cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
 cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
 cmk-dev-install-site = "cmk_dev_site.cmk_dev_install_site:main"
+cmk-dev-site-mock-auth = "cmk_dev_site.saas.oidc_service:run"
 
 [project.urls]
 Repository = "https://github.com/Checkmk/cmk-dev-site"
@@ -92,6 +97,8 @@ exclude = [
 pythonVersion = "3.11"
 pythonPlatform = "All"
 typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
 
 # Strict checks configuration
 strict = [
