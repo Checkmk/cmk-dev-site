@@ -24,6 +24,8 @@ from typing import (
     Self,
 )
 
+from cmk_dev_site.saas.constants import OIDC_PORT
+
 from .cmk.rest_api import APIClient, CheckmkAPIException, RemoteSiteConnectionConfig
 from .omd import (
     BaseVersion,
@@ -35,6 +37,7 @@ from .omd import (
     omd_config_get,
     omd_config_set,
 )
+from .utils import is_port_in_use
 from .utils import run_command as run_command_c
 from .utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
 from .version import __version__
@@ -141,6 +144,14 @@ class Site:
             check=True,
             error_message=f"[{self.name}]: Failed to create site user pass",
         )
+
+    def ensure_auth_works(self) -> None:
+        if self.cmk_pkg.edition != Edition.SAAS:
+            return
+        if not is_port_in_use(OIDC_PORT):
+            raise RuntimeError(
+                "Expect mock auth to be running for cse site. use `mock-auth` command to run it"
+            )
 
     @log(prefix=_prefix_log_site)
     def delete_site(self) -> None:
@@ -658,6 +669,7 @@ def handle_site_creation(site: Site, force: bool, configs: list[tuple[str, str]]
 
     if not existing_site_version or existing_site_version != str(site.cmk_pkg) or force:
         site.delete_site()
+        site.ensure_auth_works()
         site.create_site()
         site.configure_site(configs)
 
