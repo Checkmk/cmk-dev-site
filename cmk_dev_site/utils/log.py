@@ -163,6 +163,7 @@ def get_logger(name: str) -> CustomLogger:
 
     logging.setLoggerClass(CustomLogger)
     logger: CustomLogger = cast(CustomLogger, logging.getLogger(name))
+    logging.setLoggerClass(logging.Logger)
 
     # Use the ColoredFormatter
     formatter = ColoredFormatter("%(levelname)s: %(message)s")
