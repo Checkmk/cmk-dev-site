@@ -22,7 +22,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         type=Edition,
         nargs="?",
         choices=Edition,
-        default=Edition.ENTERPRISE,
+        default=Edition.OLD_ENTERPRISE,
     )
     parser.add_argument(
         "-d",

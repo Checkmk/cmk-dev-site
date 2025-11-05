@@ -593,7 +593,7 @@ latest branch that can be found.
         "-e",
         "--edition",
         type=Edition,
-        default=Edition.ENTERPRISE,
+        default=Edition.OLD_ENTERPRISE,
         choices=Edition,
         help="specify the edition of the version to install (default: %(default)s).",
     )

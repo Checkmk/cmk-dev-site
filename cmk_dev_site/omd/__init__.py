@@ -12,11 +12,11 @@ from typing_extensions import override
 class Edition(StrEnum):
     """Represents the Checkmk editions."""
 
-    RAW = "cre"
-    ENTERPRISE = "cee"
-    MANAGED = "cme"
-    CLOUD = "cce"
-    SAAS = "cse"
+    OLD_RAW = "cre"
+    OLD_ENTERPRISE = "cee"
+    OLD_MANAGED = "cme"
+    OLD_CLOUD = "cce"
+    OLD_SAAS = "cse"
 
 
 @functools.total_ordering
