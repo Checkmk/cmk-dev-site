@@ -108,5 +108,7 @@ reportUnusedExpression = "warning"
 reportUnnecessaryTypeIgnoreComment = true
 
 # Execution environment
-include = ["cmk_dev_site"]
-exclude = ["**/tests"]
+include = ["cmk_dev_site", "tests"]
+venvPath = "."
+venv = ".venv"
+
