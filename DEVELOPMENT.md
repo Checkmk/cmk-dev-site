@@ -104,6 +104,11 @@ uv run \
 ```sh
 uv lock --check
 ```
+  - run unittests locally
+
+```sh
+uv run pytest
+```
   - build and check package locally
 ```sh
 uv build && \

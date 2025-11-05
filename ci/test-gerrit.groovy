@@ -48,6 +48,12 @@ def main() {
                 """);
             }
 
+            stage("Testing") {
+                sh(label: "pytest", script: """
+                    uv run pytest
+                """);
+            }
+
             stage("Create changelog") {
                 sh(label: "create changelog", script: """
                     set -o pipefail
