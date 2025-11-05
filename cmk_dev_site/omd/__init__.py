@@ -17,6 +17,9 @@ class Edition(StrEnum):
     MANAGED = "cme"
     CLOUD = "cce"
     SAAS = "cse"
+    PRO = "pro"
+    ULTIMATE = "ultimate"
+    COMMUNITY = "community"
 
 
 @functools.total_ordering
