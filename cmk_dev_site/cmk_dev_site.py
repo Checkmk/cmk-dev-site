@@ -271,7 +271,7 @@ class Site:
         if message_broker_port:
             config["configuration_connection"]["message_broker_port"] = message_broker_port
 
-        if self.cmk_pkg.edition == Edition.MANAGED:
+        if self.cmk_pkg.edition == Edition.OLD_MANAGED:
             # required filed for managed edition
             config["basic_settings"]["customer"] = "provider"
         return config
@@ -397,7 +397,7 @@ def configure_tracing(central_site: Site, remote_sites: list[Site]) -> None:
 
     if (
         central_site.cmk_pkg.base_version < BaseVersion(2, 4, 0)
-        or central_site.cmk_pkg.edition == Edition.SAAS
+        or central_site.cmk_pkg.edition == Edition.OLD_SAAS
     ):
         logger.warning(
             "[%s]: Tracing is not supported for version: %s",
