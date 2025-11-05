@@ -425,7 +425,10 @@ def read_default_version() -> CMKPackage:
 def parse_version(version: str) -> CMKPackage | PartialCMKPackage:
     """Parse the version string into a cmk package."""
 
-    if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)(?:\.(\w{3}))?$", version):
+    if match := re.match(
+        r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)(?:\.(\w{3}|community|pro|ultimate|ultimatemt|cloud))?$",
+        version,
+    ):
         try:
             return CMKPackage(
                 version=VersionWithReleaseDate(
@@ -438,7 +441,9 @@ def parse_version(version: str) -> CMKPackage | PartialCMKPackage:
             )
         except ValueError as e:
             raise argparse.ArgumentTypeError(e)
-    elif match := re.match(r"^(\d+\.\d+\.\d+)(p|b)(\d+).(\w{3})$", version):
+    elif match := re.match(
+        r"^(\d+\.\d+\.\d+)(p|b)(\d+).(\w{3}|community|pro|ultimate|ultimatemt|cloud)$", version
+    ):
         try:
             return CMKPackage(
                 version=VersionWithPatch(
@@ -450,7 +455,9 @@ def parse_version(version: str) -> CMKPackage | PartialCMKPackage:
             )
         except ValueError as e:
             raise argparse.ArgumentTypeError(e)
-    elif match := re.match(r"^(\d+\.\d+\.\d+).(\w{3})$", version):
+    elif match := re.match(
+        r"^(\d+\.\d+\.\d+).(\w{3}|community|pro|ultimate|ultimatemt|cloud)$", version
+    ):
         try:
             return CMKPackage(
                 version=VersionWithPatch(
