@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import requests
 
@@ -593,7 +593,7 @@ latest branch that can be found.
         "-e",
         "--edition",
         type=Edition,
-        default=Edition.OLD_ENTERPRISE,
+        default=None,
         choices=Edition,
         help="specify the edition of the version to install (default: %(default)s).",
     )
@@ -791,6 +791,73 @@ def core_logic(
     return installed_version, pkg_path
 
 
+def validate_version_edition(
+    version: Version | None, edition: Edition | None
+) -> tuple[Version | None, Edition]:
+    # editions changed with the release of 2.5.0
+    # we want to find out which editions are valid with the current version
+    # if version is None, we install the newest version, so we are clearly post240:
+    editions_to_use: Literal["pre250", "post240", "dontknow"] = "post240"
+    if version is not None:
+        # TODO: Need refactoring
+        if isinstance(
+            version, (VersionWithReleaseDate, VersionWithPatch, VersionWithReleaseCandidate)
+        ):
+            base_version = version.base_version
+        else:
+            base_version = version
+        match base_version:
+            case GitVersion():
+                editions_to_use = "dontknow"
+            case _:
+                if base_version.major != 2:
+                    raise RuntimeError("the future is now!")
+                if base_version.minor < 5:
+                    editions_to_use = "pre250"
+
+    # first we want to figure out the default edition,
+    # if no explicit edition is specified by the user:
+    if edition is None:
+        if editions_to_use == "pre250":
+            edition = Edition.OLD_ENTERPRISE
+        elif editions_to_use == "post240":
+            edition = Edition.PRO
+        else:
+            raise RuntimeError("Please specify edition if you want to build from git")
+
+    # the user can mix editions and version, but we want to make sure
+    # only versions and editions can continue that actually match:
+    valid_post_240_editions = {
+        Edition.COMMUNITY,
+        Edition.PRO,
+        Edition.ULTIMATEMT,
+        Edition.ULTIMATE,
+        Edition.CLOUD,
+    }
+    if editions_to_use == "post240" and edition not in valid_post_240_editions:
+        raise RuntimeError(
+            "You want to install version 2.5.0 or higher, "
+            "you have to use the new Edition specifier."
+            f"\nGot {edition}, expected {', '.join(sorted(valid_post_240_editions))}"
+        )
+
+    valid_pre_250_editions = {
+        Edition.OLD_RAW,
+        Edition.OLD_ENTERPRISE,
+        Edition.OLD_MANAGED,
+        Edition.OLD_CLOUD,
+        Edition.OLD_SAAS,
+    }
+    if editions_to_use == "pre250" and edition not in valid_pre_250_editions:
+        raise RuntimeError(
+            "You want to install version 2.4.0 or smaller, "
+            "you have to use the old Edition specifier."
+            f"\nGot {edition}, expected {', '.join(sorted(valid_pre_250_editions))}"
+        )
+
+    return version, edition
+
+
 def execute(args: argparse.Namespace) -> int:
     logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
 
@@ -806,9 +873,8 @@ def execute(args: argparse.Namespace) -> int:
         http.client.HTTPConnection.debuglevel = 1
 
     try:
-        installed_version, pkg_path = core_logic(
-            args.build, args.edition, args.force, args.download_only
-        )
+        version, edition = validate_version_edition(args.build, args.edition)
+        installed_version, pkg_path = core_logic(version, edition, args.force, args.download_only)
     except RuntimeError as e:
         logger.error(e)
         return 1

@@ -10,13 +10,34 @@ from typing_extensions import override
 
 
 class Edition(StrEnum):
-    """Represents the Checkmk editions."""
-
+    # old
     OLD_RAW = "cre"
     OLD_ENTERPRISE = "cee"
     OLD_MANAGED = "cme"
     OLD_CLOUD = "cce"
     OLD_SAAS = "cse"
+    # new
+    COMMUNITY = "community"
+    PRO = "pro"
+    ULTIMATEMT = "ultimatemt"
+    ULTIMATE = "ultimate"
+    CLOUD = "cloud"
+
+
+def _map_edition_to_package_name(edition: Edition) -> str:
+    match edition:
+        case Edition.OLD_RAW:
+            return "raw"
+        case Edition.OLD_ENTERPRISE:
+            return "enterprise"
+        case Edition.OLD_MANAGED:
+            return "managed"
+        case Edition.OLD_CLOUD:
+            return "cloud"
+        case Edition.OLD_SAAS:
+            return "saas"
+        case _:
+            return edition.value
 
 
 @functools.total_ordering
@@ -169,7 +190,7 @@ class CMKPackage:
     @property
     def package_raw_name(self) -> str:
         """Get the package name."""
-        base = f"check-mk-{self.edition.name.lower()}-"
+        base = f"check-mk-{_map_edition_to_package_name(self.edition)}-"
         if isinstance(self.version, VersionWithReleaseCandidate):
             return f"{base}{self.version.base_version}{self.version.patch_type}{self.version.patch}"
         else:
