@@ -146,7 +146,7 @@ class Site:
         )
 
     def ensure_auth_works(self) -> None:
-        if self.cmk_pkg.edition != Edition.SAAS:
+        if self.cmk_pkg.edition != Edition.CLOUD:
             return
         if not is_port_in_use(OIDC_PORT):
             raise RuntimeError(

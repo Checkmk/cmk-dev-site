@@ -116,5 +116,3 @@ reportUnnecessaryTypeIgnoreComment = true
 
 # Execution environment
 include = ["cmk_dev_site", "tests"]
-venvPath = "."
-venv = ".venv"
