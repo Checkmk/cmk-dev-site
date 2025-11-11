@@ -93,16 +93,6 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
     """
     Remove a package using apt.
     """
-    run_command(
-        [
-            "sudo",
-            "apt-get",
-            "purge",
-            "-y",
-            pkg_name,
-        ],
-        raise_runtime_error=False,
-    )
     # making sure the path is relative to /omd/versions/
     if not installed_path.is_relative_to(INSTALLATION_PATH):
         raise RuntimeError(f"ERROR: Removing package failed: {installed_path} is not a valid path")
@@ -114,6 +104,27 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
             str(installed_path),
         ],
     )
+    # Check if package is installed first
+    check_result = run_command(
+        [
+            "dpkg",
+            "-l",
+            pkg_name,
+        ],
+        raise_runtime_error=False,
+    )
+
+    # Only attempt removal if package is installed
+    if check_result.returncode == 0:
+        run_command(
+            [
+                "sudo",
+                "apt-get",
+                "purge",
+                "-y",
+                pkg_name,
+            ],
+        )
 
 
 @log()
@@ -863,6 +874,12 @@ def execute(args: argparse.Namespace) -> int:
     if args.verbose - args.quiet > 4:
         http.client.HTTPConnection.debuglevel = 1
 
+    if logger.level <= logging.DEBUG:
+        logger.debug(
+            "%s: %s",
+            colorize("cmk-dev-site version:", "cyan"),
+            colorize(str(__version__), "green"),
+        )
     try:
         version, edition = validate_version_edition(args.build, args.edition)
         installed_version, pkg_path = core_logic(version, edition, args.force, args.download_only)
