@@ -22,7 +22,6 @@ import json
 import logging
 import re
 import shutil
-import socket
 import subprocess
 import sys
 import time
@@ -634,7 +633,8 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
 
     if already_installed and not (force or download_only):
         logger.warning(
-            "Version %s already installed.", INSTALLATION_PATH / Path(cmk_pkg.omd_version)
+            "Version %s already installed.",
+            INSTALLATION_PATH / Path(cmk_pkg.omd_version),
         )
         logger.warning("Use --force to re-download and re-install.")
 
@@ -686,6 +686,7 @@ def download_and_install_cmk_pkg(
             logger.warning(f"Version {cmk_pkg} not found in the download server {url}")
         else:
             valid_url = pkg_url
+            break
 
     if valid_url is None:
         raise RuntimeError("Download URL not found.")
@@ -699,22 +700,6 @@ def download_and_install_cmk_pkg(
         remove_package(cmk_pkg.package_raw_name, INSTALLATION_PATH / Path(cmk_pkg.omd_version))
         install_package(download_path)
     return cmk_pkg
-
-
-@log()
-def is_on_vpn() -> bool:
-    hostname = TSBUILD_URL.replace("https://", "").split("/")[0]
-    resolved_ip = socket.gethostbyname(hostname)
-    in_vpn_or_office = resolved_ip != "45.133.11.62"
-    if not in_vpn_or_office:
-        return False
-    # make sure we are not in the office, but not connected to vpn
-    result = run_command(
-        ["ping", "-q", "-c", "1", "-W", "1", "tstbuilds-artifacts.lan.tribe29.com"],
-        raise_runtime_error=False,
-    )
-    # we can not ping tsbuilds in the office without vpn, although it resolves to the correct ip
-    return result.returncode == 0
 
 
 @log(max_level=logging.DEBUG)
@@ -732,11 +717,12 @@ def core_logic(
     """
     if not download_only:
         ensure_sudo()
-    if is_on_vpn() is False:
-        logger.warning("You are not on the VPN, tstbuilds might not be reachable.")
-        download_urls = [CMK_DOWNLOAD_URL]
-    else:
-        download_urls = [CMK_DOWNLOAD_URL, TSBUILD_URL]
+
+    download_urls = [CMK_DOWNLOAD_URL]
+    if edition is Edition.OLD_SAAS or edition is Edition.CLOUD:
+        # cloud editions are only available via tstbuilds
+        download_urls = [TSBUILD_URL]
+
     user, password = get_user_pass()
     file_server = FileServer(user=user, password=password)
     distro = get_distro_version_info()
@@ -801,7 +787,8 @@ def validate_version_edition(
     if version is not None:
         # TODO: Need refactoring
         if isinstance(
-            version, (VersionWithReleaseDate, VersionWithPatch, VersionWithReleaseCandidate)
+            version,
+            (VersionWithReleaseDate, VersionWithPatch, VersionWithReleaseCandidate),
         ):
             base_version = version.base_version
         else:
