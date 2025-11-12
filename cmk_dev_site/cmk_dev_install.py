@@ -870,6 +870,12 @@ def execute(args: argparse.Namespace) -> int:
     if args.verbose - args.quiet > 4:
         http.client.HTTPConnection.debuglevel = 1
 
+    if logger.level <= logging.DEBUG:
+        logger.debug(
+            "%s: %s",
+            colorize("cmk-dev-site version:", "cyan"),
+            colorize(str(__version__), "green"),
+        )
     try:
         version, edition = validate_version_edition(args.build, args.edition)
         installed_version, pkg_path = core_logic(version, edition, args.force, args.download_only)

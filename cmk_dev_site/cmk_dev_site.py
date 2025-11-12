@@ -882,6 +882,13 @@ def core_logic(args: argparse.Namespace) -> None:
 def execute(args: argparse.Namespace) -> int:
     try:
         logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
+
+        if logger.level <= logging.DEBUG:
+            logger.debug(
+                "%s: %s",
+                colorize("cmk-dev-site version:", "cyan"),
+                colorize(str(__version__), "green"),
+            )
         core_logic(args)
 
     except RuntimeError as e:
