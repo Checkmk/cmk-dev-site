@@ -97,6 +97,8 @@ class VersionWithPatch(BaseVersion):
         self.patch = patch
 
     def __str__(self) -> str:
+        if self.patch_type == "p" and self.patch == 0:
+            return f"{self.base_version}"
         return f"{self.base_version}{self.patch_type}{self.patch}"
 
     def iso_format(self) -> str:
