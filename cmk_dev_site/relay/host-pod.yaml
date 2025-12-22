@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: relay-host-pod-$site
+spec:
+  hostNetwork: true
+  initContainers:
+    - name: init-configs
+      image: $image_registry/check-mk-relay:$image_tag
+      command:
+        - /bin/sh
+        - -c
+        - |
+          if [ -n "$$(ls -A /opt/check-mk-relay/workdir)" ]; then
+            echo "Files found in /opt/check-mk-relay/workdir, skipping registration"
+          else
+            cmk-relay register -s localhost -i $site -U cmkadmin -P cmk -n $relay_alias --trust-cert --force --log-level debug
+          fi
+      volumeMounts:
+        - name: config-volume
+          mountPath: /opt/check-mk-relay/workdir
+  containers:
+    - name: relay
+      image: $image_registry/check-mk-relay:$image_tag
+      command: ["cmk-relay", "daemon"]
+      volumeMounts:
+        - name: config-volume
+          mountPath: /opt/check-mk-relay/workdir
+  volumes:
+    - name: config-volume
+      hostPath:
+        path: /tmp/cmk-dev-relay/$site/configs/$config_dir
+        type: DirectoryOrCreate

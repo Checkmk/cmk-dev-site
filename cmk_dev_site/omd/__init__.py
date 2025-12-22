@@ -277,3 +277,32 @@ def omd_config_get(site_name: str, param: str) -> str | None:
         raise RuntimeError(
             f"Could not get configuration {param} for site {site_name}\n{e.stderr}"
         ) from e
+
+
+def omd_sites() -> list[str]:
+    try:
+        result = subprocess.run(
+            ["omd", "sites", "--bare"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip().split("\n")
+        return []
+    except FileNotFoundError:
+        return []
+
+
+def omd_version(site_name: str) -> str:
+    """Returns raw output: "OMD - Version 2.5.0.ultimate" """
+    try:
+        result = subprocess.run(
+            ["omd", "version", site_name],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Could not get version for site {site_name}\n{e.stderr}") from e

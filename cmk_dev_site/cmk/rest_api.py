@@ -106,6 +106,7 @@ class APIClient:
         proto: str = "http",
     ) -> None:
         self.base_url = f"{proto}://{server_host_name}/{site_name}/check_mk/api/1.0"
+        self.unstable_url = f"{proto}://{server_host_name}/{site_name}/check_mk/api/unstable"
 
         self.site_name = site_name
         self.session = requests.session()
@@ -308,3 +309,31 @@ class APIClient:
                 f.write(response.content)
         else:
             raise build_exception(response, "Failed to download agent")
+
+    def list_relays(self) -> list[dict[str, str]]:
+        response = self.session.get(
+            f"{self.unstable_url}/domain-types/relay/collections/all",
+            headers={"Accept": "application/json"},
+        )
+        if response.status_code != 200:
+            return []
+
+        data = response.json()
+        return [
+            {"id": relay["id"], "alias": relay["extensions"].get("alias", "")}
+            for relay in data.get("value", [])
+        ]
+
+    def get_relay_etag(self, relay_id: str) -> str | None:
+        response = self.session.head(
+            f"{self.unstable_url}/objects/relay/{relay_id}",
+            headers={"Accept": "application/json"},
+        )
+        return response.headers.get("ETag")
+
+    def delete_relay(self, relay_id: str, etag: str) -> bool:
+        response = self.session.delete(
+            f"{self.unstable_url}/objects/relay/{relay_id}",
+            headers={"Accept": "application/json", "If-Match": etag},
+        )
+        return response.status_code in (200, 204)

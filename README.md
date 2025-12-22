@@ -77,6 +77,18 @@ manually remove the sites using `omd rm`.
 For uninstall packages that are no longer in use you can use `omd cleanup`,
 or you might fall back to use `apt purge`.
 
+### `cmk-dev-relay`
+
+Manages Checkmk relay pods for testing using podman. This tool deploys relay
+containers in two configurations:
+- **SNMP relay pod**: Includes a relay container and SNMP daemon for testing
+- **Host relay pod**: Uses host network mode for direct connectivity
+
+**Note**: This tool uses the podman CLI directly via subprocess rather than the
+podman-py library. This is intentional to support Ubuntu's default daemonless
+podman configuration without requiring users to enable `podman.socket`. See the
+implementation comments in `cmk_dev_site/cmk_dev_relay.py` for details.
+
 ## Contributing
 
 If you'd like to make contributions to the tool, check out our

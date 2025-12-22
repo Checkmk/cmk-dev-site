@@ -1,4 +1,7 @@
+import subprocess
 from datetime import date
+from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -10,6 +13,8 @@ from cmk_dev_site.omd import (
     VersionWithPatch,
     VersionWithReleaseCandidate,
     VersionWithReleaseDate,
+    omd_sites,
+    omd_version,
 )
 
 
@@ -169,3 +174,56 @@ def test_build_download_url() -> None:
     )
     expected_url_date = "https://download.checkmk.com/checkmk/2.3.0-2025.01.01/check-mk-ultimate-2.3.0-2025.01.01_0.noble_amd64.deb"
     assert build_download_url(base_url, pkg_date) == expected_url_date
+
+
+def test_omd_sites_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_result = Mock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+
+    def mock_run(*args: Any, **kwargs: Any) -> Any:
+        return mock_result
+
+    monkeypatch.setattr("cmk_dev_site.omd.subprocess.run", mock_run)
+    assert omd_sites() == []
+
+
+def test_omd_sites_with_sites(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_result = Mock()
+    mock_result.returncode = 0
+    mock_result.stdout = "site1\nsite2\nsite3\n"
+
+    def mock_run(*args: Any, **kwargs: Any) -> Any:
+        return mock_result
+
+    monkeypatch.setattr("cmk_dev_site.omd.subprocess.run", mock_run)
+    assert omd_sites() == ["site1", "site2", "site3"]
+
+
+def test_omd_sites_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
+    def mock_run(*args: Any, **kwargs: Any) -> Any:
+        raise FileNotFoundError()
+
+    monkeypatch.setattr("cmk_dev_site.omd.subprocess.run", mock_run)
+    assert omd_sites() == []
+
+
+def test_omd_version_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    mock_result = Mock()
+    mock_result.stdout = "OMD - Version 2.5.0.ultimate\n"
+
+    def mock_run(*args: Any, **kwargs: Any) -> Any:
+        return mock_result
+
+    monkeypatch.setattr("cmk_dev_site.omd.subprocess.run", mock_run)
+    assert omd_version("mysite") == "OMD - Version 2.5.0.ultimate"
+
+
+def test_omd_version_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def mock_run(*args: Any, **kwargs: Any) -> Any:
+        raise subprocess.CalledProcessError(1, "omd", stderr="Site not found")
+
+    monkeypatch.setattr("cmk_dev_site.omd.subprocess.run", mock_run)
+
+    with pytest.raises(RuntimeError, match="Could not get version for site"):
+        omd_version("nonexistent")
