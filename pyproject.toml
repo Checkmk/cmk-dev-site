@@ -41,6 +41,7 @@ dev = [
 ]
 
 [project.scripts]
+cdt = "cmk_dev_site.cmk_dev_tool:main"
 cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
 cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
 cmk-dev-install-site = "cmk_dev_site.cmk_dev_install_site:main"
