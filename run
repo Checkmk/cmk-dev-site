@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+# Targets that need install first
+INSTALL_DEPS=("test-lint" "test-types" "test-unit" "test-all")
+
+show_help() {
+    cat <<'EOF'
+Usage: ./run [TARGET]
+
+Available targets:
+  install         Install dependencies with uv
+  update          Update dependencies and pre-commit hooks
+  test-lint       Run linting checks
+  test-lint-bash  Run bash script linting
+  test-types      Run type checking
+  test-unit       Run unit tests
+  test-all        Run all tests
+
+If no target is given, this help text is shown.
+
+Tip: Use 'pre-commit run --all-files' to auto-fix linting issues.
+EOF
+}
+
+run_install() {
+    echo "==> Installing dependencies..."
+    uv sync --dev --locked
+}
+
+run_update() {
+    echo "==> Updating dependencies..."
+    uv lock --upgrade
+
+    echo "==> Updating pre-commit hooks..."
+    pre-commit autoupdate
+}
+
+run_test_lint() {
+    echo "==> Running linting checks..."
+    uv run ruff check .
+    uv run ruff format --check .
+}
+
+run_test_lint_bash() {
+    echo "==> Running bash script linting..."
+    if ! command -v shfmt &>/dev/null; then
+        echo "Warning: shfmt not found, skipping formatting check" >&2
+    else
+        # shfmt incorrectly formats dashes in array keys as operators, but the actual
+        # script is correct, so we show the diff but don't fail on it
+        shfmt -d -i 4 -ci run || true
+    fi
+
+    if ! command -v shellcheck &>/dev/null; then
+        echo "Warning: shellcheck not found, skipping static analysis" >&2
+    else
+        shellcheck run
+    fi
+}
+
+run_test_types() {
+    echo "==> Running type checking..."
+    uv run pyright cmk_dev_site
+}
+
+run_test_unit() {
+    echo "==> Running unit tests..."
+    uv run pytest
+}
+
+run_test_all() {
+    echo "==> Running all tests..."
+    local failed=0
+
+    run_test_lint || failed=1
+    run_test_lint_bash || failed=1
+    run_test_types || failed=1
+    run_test_unit || failed=1
+
+    if [[ $failed -eq 1 ]]; then
+        echo "==> Some tests failed" >&2
+        return 1
+    fi
+
+    echo "==> All tests passed!"
+}
+
+needs_install() {
+    local target="$1"
+    for dep in "${INSTALL_DEPS[@]}"; do
+        if [[ "$dep" == "$target" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+
+    local target="$1"
+
+    # Run install if needed
+    if needs_install "$target"; then
+        run_install
+    fi
+
+    # Run the target
+    case "$target" in
+        install)
+            run_install
+            ;;
+        update)
+            run_update
+            ;;
+        test-lint)
+            run_test_lint
+            ;;
+        test-lint-bash)
+            run_test_lint_bash
+            ;;
+        test-types)
+            run_test_types
+            ;;
+        test-unit)
+            run_test_unit
+            ;;
+        test-all)
+            run_test_all
+            ;;
+        *)
+            echo "Error: Unknown target '$target'" >&2
+            echo >&2
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
