@@ -77,6 +77,22 @@ manually remove the sites using `omd rm`.
 For uninstall packages that are no longer in use you can use `omd cleanup`,
 or you might fall back to use `apt purge`.
 
+### `cmk-dev-relay`
+
+Manages Checkmk relay containers for testing using docker-compose. This tool
+deploys relay services in isolated container environments:
+- **SNMP relay**: Includes a relay container and SNMP daemon for testing
+- **Host relay**: Uses host network mode for direct connectivity
+
+**Note**: This tool supports both Docker and Podman via their respective compose
+implementations:
+- `docker compose` (Docker with built-in compose plugin)
+- `podman compose` (Podman 4.0+ with built-in compose support)
+- `podman-compose` (Separate podman-compose tool)
+- `docker-compose` (Legacy standalone docker-compose)
+
+The tool automatically detects which compose implementation is available.
+
 ## Contributing
 
 If you'd like to make contributions to the tool, check out our

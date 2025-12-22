@@ -165,11 +165,16 @@ def get_logger(name: str) -> CustomLogger:
     logger: CustomLogger = cast(CustomLogger, logging.getLogger(name))
     logging.setLoggerClass(logging.Logger)
 
-    # Use the ColoredFormatter
-    formatter = ColoredFormatter("%(levelname)s: %(message)s")
-    console_handler = InlineStreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    # Only add handler once to avoid duplicates
+    # We add it to each logger but set propagate=False to avoid duplication
+    if not logger.handlers:
+        # Use the ColoredFormatter
+        formatter = ColoredFormatter("%(levelname)s: %(message)s")
+        console_handler = InlineStreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    logger.propagate = False
 
     return logger
 

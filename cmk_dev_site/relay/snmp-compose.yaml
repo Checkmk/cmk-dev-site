@@ -1,0 +1,49 @@
+name: relay-snmp-$site
+
+services:
+  snmp-init-configs:
+    image: $image_registry/check-mk-relay:$image_tag
+    container_name: relay-snmp-init-$site
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ -n "$$(ls -A /opt/check-mk-relay/workdir)" ]; then
+          echo "Files found in /opt/check-mk-relay/workdir, skipping registration"
+        else
+          cmk-relay register -s localhost -i $site -U cmkadmin -P cmk -n $relay_alias --trust-cert --force --log-level debug
+        fi
+    volumes:
+      - $config_path:/opt/check-mk-relay/workdir
+    network_mode: host
+
+  snmpd:
+    image: docker.io/polinux/snmpd
+    container_name: relay-snmpd-$site
+    hostname: test.relay
+    command: ["-f", "-Lo", "-DALL"]
+    networks:
+      - relay-network
+    restart: unless-stopped
+
+  snmp-relay:
+    image: $image_registry/check-mk-relay:$image_tag
+    container_name: relay-snmp-$site
+    command: ["cmk-relay", "daemon"]
+    volumes:
+      - $config_path:/opt/check-mk-relay/workdir
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - relay-network
+    depends_on:
+      snmp-init-configs:
+        condition: service_completed_successfully
+      snmpd:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  relay-network:
+    name: relay-network-$site
+    driver: bridge

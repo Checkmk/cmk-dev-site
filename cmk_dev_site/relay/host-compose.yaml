@@ -1,0 +1,30 @@
+name: relay-host-$site
+
+services:
+  host-init-configs:
+    image: $image_registry/check-mk-relay:$image_tag
+    container_name: relay-host-init-$site
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ -n "$$(ls -A /opt/check-mk-relay/workdir)" ]; then
+          echo "Files found in /opt/check-mk-relay/workdir, skipping registration"
+        else
+          cmk-relay register -s localhost -i $site -U cmkadmin -P cmk -n $relay_alias --trust-cert --force --log-level debug
+        fi
+    volumes:
+      - $config_path:/opt/check-mk-relay/workdir
+    network_mode: host
+
+  host-relay:
+    image: $image_registry/check-mk-relay:$image_tag
+    container_name: relay-host-$site
+    command: ["cmk-relay", "daemon"]
+    volumes:
+      - $config_path:/opt/check-mk-relay/workdir
+    network_mode: host
+    depends_on:
+      host-init-configs:
+        condition: service_completed_successfully
+    restart: unless-stopped
