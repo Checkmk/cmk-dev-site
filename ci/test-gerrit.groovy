@@ -25,32 +25,26 @@ def main() {
         docker_image.inside(docker_args) {
             stage("Test locked dependencies") {
                 sh(label: "uv lock --check", script: """
-                    uv lock --check
+                    ./run test-lockfile
                 """);
             }
 
-            stage("Install dependencies") {
-                sh(label: "uv sync", script: """
-                    uv sync --frozen
-                """);
-            }
 
             stage("Linting") {
                 sh(label: "ruff", script: """
-                    uv run ruff check
-                    uv run ruff format --check
+                    ./run test-lint
                 """);
             }
 
             stage("Typing") {
                 sh(label: "pyright", script: """
-                    uv run pyright cmk_dev_site
+                    ./run test-types
                 """);
             }
 
             stage("Testing") {
                 sh(label: "pytest", script: """
-                    uv run pytest
+                    ./run test-unit
                 """);
             }
 

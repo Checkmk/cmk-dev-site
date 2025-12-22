@@ -1,0 +1,8 @@
+[{bash,*.sh,run}]
+# like -i=4
+indent_style = space
+indent_size = 4
+# --case-indent
+switch_case_indent = true
+space_redirects    = true
+keep_padding       = true
