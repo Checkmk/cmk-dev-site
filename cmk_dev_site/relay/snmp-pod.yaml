@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: relay-snmp-pod-$site
+spec:
+  hostAliases:
+    - ip: "127.0.0.1"
+      hostnames:
+        - "test.relay"
+  initContainers:
+    - name: init-configs
+      image: $image_registry/check-mk-relay:$image_tag
+      command:
+        - /bin/sh
+        - -c
+        - |
+          if [ -n "$$(ls -A /opt/check-mk-relay/workdir)" ]; then
+            echo "Files found in /opt/check-mk-relay/workdir, skipping registration"
+          else
+            cmk-relay register -s host.containers.internal -i $site -U cmkadmin -P cmk -n $relay_alias --trust-cert --force --log-level debug
+          fi
+      volumeMounts:
+        - name: config-volume
+          mountPath: /opt/check-mk-relay/workdir
+  containers:
+    - name: relay
+      image: $image_registry/check-mk-relay:$image_tag
+      command: ["cmk-relay", "daemon"]
+      volumeMounts:
+        - name: config-volume
+          mountPath: /opt/check-mk-relay/workdir
+    - name: snmpd
+      image: docker.io/polinux/snmpd
+      # -f: do not fork
+      # -Lo: log to stdout
+      # -DALL: debug everything (very verbose)
+      args: ["-f", "-Lo", "-DALL"]
+      ports:
+        # Note: containerPort only exposes the port within the pod network.
+        # This does NOT bind to the host's loopback interface, so it doesn't
+        # require privileged access for ports < 1024. To bind to host, you
+        # would need hostPort, but that's not needed for this use case.
+        - containerPort: 161
+          protocol: UDP
+  volumes:
+    - name: config-volume
+      hostPath:
+        path: /tmp/cmk-dev-relay/$site/configs/$config_dir
+        type: DirectoryOrCreate

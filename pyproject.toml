@@ -45,6 +45,7 @@ cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
 cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
 cmk-dev-install-site = "cmk_dev_site.cmk_dev_install_site:main"
 cmk-dev-site-mock-auth = "cmk_dev_site.saas.oidc_service:run"
+cmk-dev-relay = "cmk_dev_site.cmk_dev_relay:main"
 
 [project.urls]
 Repository = "https://github.com/Checkmk/cmk-dev-site"
@@ -57,8 +58,14 @@ path = "cmk_dev_site/version.py"
 # auto generated file cmk_dev_site/version.py would be excluded otherwise
 [tool.hatch.build.targets.sdist]
 ignore-vcs = true
+
 [tool.hatch.build.targets.wheel]
 ignore-vcs = true
+packages = ["cmk_dev_site"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"cmk_dev_site/relay/snmp-pod.yaml" = "cmk_dev_site/relay/snmp-pod.yaml"
+"cmk_dev_site/relay/host-pod.yaml" = "cmk_dev_site/relay/host-pod.yaml"
 
 [tool.ruff]
 # Base configuration
