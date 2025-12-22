@@ -197,7 +197,7 @@ def add_method_logging(
             # Get all public methods
             target_methods: list[Any] = [
                 name
-                for name, method in inspect.getmembers(cls, predicate=inspect.isfunction)
+                for name, _method in inspect.getmembers(cls, predicate=inspect.isfunction)
                 if not name.startswith("_") and name not in exclude_methods_set
             ]
         else:
