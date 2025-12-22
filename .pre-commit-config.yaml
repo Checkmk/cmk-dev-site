@@ -6,7 +6,7 @@ repos:
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.3
+    rev: v0.14.10
     hooks:
     -   id: ruff-check
         args: [ --fix ]
@@ -16,19 +16,19 @@ repos:
     hooks:
     -   id: pyright
 -   repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.10.0-1
+    rev: v3.12.0-2
     hooks:
     -   id: shfmt
         args: [-w, -i, '4', -ci]
 -   repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.10.0.1
+    rev: v0.11.0.1
     hooks:
     -   id: shellcheck
 -   repo: https://github.com/gitleaks/gitleaks
-    rev: v8.28.0
+    rev: v8.30.0
     hooks:
     -   id: gitleaks
 -   repo: https://github.com/crate-ci/typos
-    rev: v1.39.0
+    rev: typos-dict-v0.13.13
     hooks:
     -   id: typos
