@@ -28,6 +28,7 @@ dependencies = [
   "fastapi", # absolute minimum fastapi
   "uvicorn", # ASGI worker
   "python-multipart>=0.0.20", # needed for form data
+  "podman", # container management for relay
 ]
 
 [dependency-groups]
@@ -46,6 +47,7 @@ cmk-dev-install = "cmk_dev_site.cmk_dev_install:main"
 cmk-dev-site = "cmk_dev_site.cmk_dev_site:main"
 cmk-dev-install-site = "cmk_dev_site.cmk_dev_install_site:main"
 cmk-dev-site-mock-auth = "cmk_dev_site.saas.oidc_service:run"
+cmk-dev-relay = "cmk_dev_site.cmk_dev_relay:main"
 
 [project.urls]
 Repository = "https://github.com/Checkmk/cmk-dev-site"

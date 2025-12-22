@@ -7,6 +7,7 @@ from typing import NoReturn
 
 from cmk_dev_site.cmk_dev_install import main as install_main
 from cmk_dev_site.cmk_dev_install_site import main as install_site_main
+from cmk_dev_site.cmk_dev_relay import main as relay_main
 from cmk_dev_site.cmk_dev_site import main as site_main
 from cmk_dev_site.saas.oidc_service import run as mock_auth_run
 
@@ -28,6 +29,10 @@ TOOLS: dict[str, ToolInfo] = {
     "site-mock-auth": {
         "main": mock_auth_run,
         "description": "Run mock OIDC authentication service",
+    },
+    "relay": {
+        "main": relay_main,
+        "description": "Relay tool for cmk-dev-site",
     },
 }
 
