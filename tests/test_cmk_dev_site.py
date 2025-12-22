@@ -1,6 +1,7 @@
+from datetime import date
+
 from cmk_dev_site.cmk_dev_site import Config
 from cmk_dev_site.omd import BaseVersion, VersionWithPatch, VersionWithReleaseDate
-from datetime import date
 
 
 def test_default_name_base_version():
