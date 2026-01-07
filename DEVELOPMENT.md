@@ -2,37 +2,82 @@
 
 ## Development & Contribution
 
+### Quick Start
+
+For a quick development workflow, use the `./run` script:
+
+```bash
+# Install dependencies
+./run install
+
+# Run all tests and linters
+./run test-all
+
+# Auto-fix linting issues
+pre-commit run --all-files
+```
+
+See [Testing & Linting](#testing--linting) for more details.
+
 ### Preparation
 
-#### Install tooling
-
-See also [Wiki - How to install bazelisk][ref-how-to-bazelisk]
+Install `uv` if you haven't already, then install dependencies:
 
 ```bash
-cd git/check_mk
-sudo ./buildscripts/infrastructure/build-nodes/scripts/install-development.sh --profile bazel --only
+./run install
 ```
 
-#### Create venv
+This will create a virtual environment and install all required dependencies.
 
-Next, install `uv` from the directory of this README via Bazel and generate the `requirements.txt` file.
-The file `requirements.txt` shall exist on the initial run, but it may be empty.
+### Testing & Linting
+
+The project includes a `./run` script that provides convenient commands for testing and linting.
+
+#### Available Commands
 
 ```bash
-bazel run //:generate_requirements_txt
+# Install dependencies (uses uv)
+./run install
+
+# Update dependencies and pre-commit hooks
+./run update
+
+# Run Python linting (ruff)
+./run test-lint-python
+
+# Run Bash script linting (shfmt + shellcheck)
+./run test-lint-bash
+
+# Run all linting checks
+./run test-lint
+
+# Run type checking (pyright)
+./run test-types
+
+# Run unit tests (pytest)
+./run test-unit
+
+# Check if lock file is in sync
+./run test-lockfile
+
+# Run all tests (linting, types, unit tests)
+./run test-all
 ```
 
-Finally generate the `.venv` with `uv` by using Bazel again
+#### Auto-fixing Issues
+
+Most linting issues can be automatically fixed:
 
 ```bash
-bazel run //:create_venv
+pre-commit run --all-files
 ```
 
-Activate and use the created `.venv` with the following standard command
+#### Development Workflow
 
-```bash
-source .venv/bin/activate
-```
+1. Make your code changes
+2. Auto-fix linting issues: `pre-commit run --all-files`
+3. Run all tests: `./run test-all`
+4. Fix any remaining issues and repeat until all tests pass
 
 ### Workflow
 
@@ -100,14 +145,14 @@ uv run \
 * modify and check commits via `pre-commit run --all-files`
 * after work is done locally:
 
+  - run all tests (linting, types, unit tests)
+```sh
+./run test-all
+```
   - update dependencies before/with a new release
 ```sh
-uv lock --check
-```
-  - run unittests locally
-
-```sh
-uv run pytest
+./run update
+./run test-lockfile
 ```
   - build and check package locally
 ```sh
@@ -132,7 +177,6 @@ pip install --no-cache-dir \
   - finally merge the changes and let Jenkins create the release tag and deployment to [pypi.org][ref-pypi-cmk-dev-site]
 
 <!-- Links -->
-[ref-how-to-batelisk]: https://wiki.lan.checkmk.net/display/DEV/How+to+install+bazelisk
 [ref-snippets2changelog]: https://github.com/brainelectronics/snippets2changelog
 [ref-test-pypi-cmk-dev-site]: https://test-pypi.org/project/checkmk-toolbelt/
 [ref-pypi-cmk-dev-site]: https://pypi.org/project/checkmk-toolbelt/
