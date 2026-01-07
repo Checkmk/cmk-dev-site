@@ -1,0 +1,9 @@
+## Clean exit on CTRL-C
+<!--
+type: feature
+scope: all
+affected: all
+-->
+
+All CLI scripts now handle keyboard interrupts (Ctrl-C) and termination signals (SIGTERM, SIGHUP)
+gracefully with clean exit messages instead of showing stack traces.

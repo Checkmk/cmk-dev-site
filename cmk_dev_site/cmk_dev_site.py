@@ -39,6 +39,7 @@ from .omd import (
 )
 from .utils import is_port_in_use
 from .utils import run_command as run_command_c
+from .utils.cli import clean_cli_exit
 from .utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -899,12 +900,8 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def main(sys_argv: list[str] | None = None) -> int:
-    """
-    Main function to set up Checkmk site and handle distributed setup.
-    Returns:
-       int: Exit status code.
-    """
-    parser: argparse.ArgumentParser = create_parser()
-    setup_parser(parser)
-    args = parser.parse_args(sys_argv or sys.argv[1:])
-    return execute(args)
+    with clean_cli_exit():
+        parser: argparse.ArgumentParser = create_parser()
+        setup_parser(parser)
+        args = parser.parse_args(sys_argv or sys.argv[1:])
+        return execute(args)

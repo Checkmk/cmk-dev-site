@@ -46,6 +46,7 @@ from .omd import (
     VersionWithReleaseDate,
 )
 from .utils import run_command as run_command_c
+from .utils.cli import clean_cli_exit
 from .utils.log import colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -890,8 +891,9 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def main(sys_argv: list[str] | None = None) -> int:
-    parser = create_parser()
-    setup_parser(parser)
+    with clean_cli_exit():
+        parser = create_parser()
+        setup_parser(parser)
 
-    args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
-    return execute(args)
+        args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
+        return execute(args)

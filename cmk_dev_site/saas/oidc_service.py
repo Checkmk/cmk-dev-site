@@ -33,6 +33,7 @@ from cmk_dev_site.saas.constants import (
     URL,
 )
 from cmk_dev_site.utils import is_port_in_use, write_root_owned_file
+from cmk_dev_site.utils.cli import clean_cli_exit
 from cmk_dev_site.utils.log import get_logger
 
 application = fapi.FastAPI()
@@ -164,22 +165,23 @@ def _parse_args() -> argparse.Namespace:
 
 
 def run() -> None:
-    args = _parse_args()
-    log_level = logging.DEBUG if args.verbose >= 1 else logging.INFO
-    logger.setLevel(log_level)
+    with clean_cli_exit():
+        args = _parse_args()
+        log_level = logging.DEBUG if args.verbose >= 1 else logging.INFO
+        logger.setLevel(log_level)
 
-    if is_port_in_use(OIDC_PORT):
-        logger.info("OIDC port is used. Assume fake provider is running")
-        return
+        if is_port_in_use(OIDC_PORT):
+            logger.info("OIDC port is used. Assume fake provider is running")
+            return
 
-    ensure_sudo()
+        ensure_sudo()
 
-    logger.debug("writing config")
-    config = OIDCConfig()
-    write_root_owned_file(OIDC_CONFIG_PATH, config.model_dump_json(indent=4))
+        logger.debug("writing config")
+        config = OIDCConfig()
+        write_root_owned_file(OIDC_CONFIG_PATH, config.model_dump_json(indent=4))
 
-    admin_panel = AdminPanelUrlConfig()
-    write_root_owned_file(ADMIN_PANEL_CONFIG_PATH, admin_panel.model_dump_json(indent=4))
+        admin_panel = AdminPanelUrlConfig()
+        write_root_owned_file(ADMIN_PANEL_CONFIG_PATH, admin_panel.model_dump_json(indent=4))
 
-    logger.debug("starting uvicorn")
-    uvicorn.run(application, port=OIDC_PORT, host=HOST, log_level=log_level)
+        logger.debug("starting uvicorn")
+        uvicorn.run(application, port=OIDC_PORT, host=HOST, log_level=log_level)

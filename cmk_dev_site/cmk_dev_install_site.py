@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from .cmk_dev_install import Edition
 from .cmk_dev_install import main as cmk_dev_install
 from .cmk_dev_site import main as cmk_dev_site
+from .utils.cli import clean_cli_exit
 from .utils.log import get_logger
 from .version import __version__
 
@@ -140,8 +141,9 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(sys_argv: list[str] | None = None) -> int:
-    parser = create_parser()
-    setup_parser(parser)
+    with clean_cli_exit():
+        parser = create_parser()
+        setup_parser(parser)
 
-    args = parser.parse_args()
-    return execute(args)
+        args = parser.parse_args()
+        return execute(args)
