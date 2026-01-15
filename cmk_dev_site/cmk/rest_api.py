@@ -175,11 +175,7 @@ class APIClient:
 
     def _get(self, url: str) -> requests.Response:
         """Make a GET request to the Checkmk server."""
-        if url.startswith(('http://', 'https://')):
-            full_url = url
-        else:
-            full_url = f"{self.base_url}{url}"
-    
+        full_url = url if url.startswith(("http://", "https://")) else f"{self.base_url}{url}"
         return self.session.get(full_url)
 
     def create_site_connection(self, site_config: RemoteSiteConnectionConfig) -> None:
