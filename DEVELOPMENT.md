@@ -15,24 +15,29 @@ sudo ./buildscripts/infrastructure/build-nodes/scripts/install-development.sh --
 
 #### Create venv
 
-Next, install `uv` from the directory of this README via Bazel and generate the `requirements.txt` file.
-The file `requirements.txt` shall exist on the initial run, but it may be empty.
+Create the virtual environment and install all dependencies (including dev dependencies) with `uv`:
 
 ```bash
-bazel run //:generate_requirements_txt
+uv sync --all-groups
 ```
 
-Finally generate the `.venv` with `uv` by using Bazel again
-
-```bash
-bazel run //:create_venv
-```
-
-Activate and use the created `.venv` with the following standard command
+Activate the created `.venv`:
 
 ```bash
 source .venv/bin/activate
 ```
+
+**Alternative (using Bazel):**
+
+If you prefer to use Bazel (e.g., for integration with Checkmk ecosystem):
+
+```bash
+bazel run //:generate_requirements_txt
+bazel run //:create_venv
+uv sync --group dev  # Still needed for dev tools
+```
+
+Note: The Bazel approach only installs production dependencies from `requirements.txt`, so you still need to run `uv sync --group dev` to get development tools like ruff, pyright, and pytest.
 
 ### Workflow
 
@@ -128,6 +133,11 @@ pip install --no-cache-dir \
     -i https://test.pypi.org/simple/ \
     --extra-index-url https://pypi.org/simple \
     cmk-dev-site==<VERSION_WITH_RC>
+# or using pipx
+pipx install --force cmk-dev-site==<VERSION_WITH_RC> \
+              --pip-args="--index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              --prefer-binary"
 ```
   - finally merge the changes and let Jenkins create the release tag and deployment to [pypi.org][ref-pypi-cmk-dev-site]
 
