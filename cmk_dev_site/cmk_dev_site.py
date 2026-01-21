@@ -284,7 +284,10 @@ class Site:
         if message_broker_port:
             config["configuration_connection"]["message_broker_port"] = message_broker_port
 
-        if self.cmk_pkg.edition == Edition.OLD_MANAGED:
+        if (
+            self.cmk_pkg.edition == Edition.OLD_MANAGED
+            or self.cmk_pkg.edition == Edition.ULTIMATEMT
+        ):
             # required filed for managed edition
             config["basic_settings"]["customer"] = "provider"
         return config
