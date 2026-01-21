@@ -77,6 +77,14 @@ class CheckmkAPIException(Exception):
         self.status_code = status_code
         self.response_data = response_data
 
+    def __str__(self) -> str:
+        parts = [super().__str__()]
+        if self.status_code is not None:
+            parts.append(f"Status code: {self.status_code}")
+        if self.response_data is not None:
+            parts.append(f"Response: {self.response_data}")
+        return "\n".join(parts)
+
 
 def build_exception(response: requests.Response, message: str) -> CheckmkAPIException:
     try:
