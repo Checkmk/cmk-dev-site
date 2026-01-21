@@ -183,11 +183,8 @@ class APIClient:
 
     def _get(self, url: str) -> requests.Response:
         """Make a GET request to the Checkmk server."""
-        # this feels a bit hackish... introduced because links are absolute urls
-        if not url.startswith("http://"):
-            url = f"{self.base_url}{url}"
-        resp = self.session.get(url)
-        return resp
+        full_url = url if url.startswith(("http://", "https://")) else f"{self.base_url}{url}"
+        return self.session.get(full_url)
 
     def create_site_connection(self, site_config: RemoteSiteConnectionConfig) -> None:
         """Create a site connection on the Checkmk server."""
