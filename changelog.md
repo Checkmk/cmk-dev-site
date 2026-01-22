@@ -17,6 +17,303 @@ r"^\#\# \[\d{1,}[.]\d{1,}[.]\d{1,}\] \- \d{4}\-\d{2}-\d{2}$"
 -->
 
 ## Released
+## [1.11.2] - 2026-01-21T18:02:27+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Previously if there was an error in the API call, the status code and response were not printed in the exception.
+Now, the status code and response will be included in the API exception message for better debugging.
+
+[1.11.2]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.11.2
+
+## [1.11.1] - 2025-12-16T14:44:10+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Creating a site with `cmk-dev-install-site 2.4.0` failed with an error:
+
+```
+ERROR: Checkmk 2.4.0p0 is not installed.
+```
+
+[1.11.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.11.1
+
+## [1.11.0] - 2025-11-13T10:01:42+01:00
+<!-- meta = {'type': 'feature', 'scope': ['external'], 'affected': ['all']} -->
+
+TBD
+
+[1.11.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.11.0
+
+## [1.10.1] - 2025-11-13T10:01:42+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Removal of packages in cmk-dev-install occasionally resulted in errors due to f12 in the site.
+Now we check if the package exists and remove the package without silenting the raising error to ensure we get the correct error at the end.
+Additionally, the package directory is removed before the package removal to resolve the aforementioned issue.
+
+[1.10.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.10.1
+
+## [1.10.0] - 2025-11-13T10:01:42+01:00
+<!-- meta = {'type': 'feature', 'scope': ['internal'], 'affected': ['all']} -->
+
+Prefer downloading packages from the public downloads.checkmk.com server, instead of the internal tsbuilds server.
+We only use tstbuilds-artifacts.lan.tribe29.com for the cloud edition.
+
+[1.10.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.10.0
+
+## [1.9.1] - 2025-11-12T11:34:25+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+fix pyproject toml file. this made the last release fail.
+
+also fix typing problem which was caused by a not rebased merge
+
+[1.9.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.9.1
+
+## [1.9.0] - 2025-11-11T10:39:13+01:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+Added a fake OIDC provider to enable local development and testing of CSE sites without requiring external authentication services.
+The mock authentication service implements all required OIDC endpoints and supports tenant-based authorization.
+
+**Key additions:**
+- New `mock-auth` command to start the fake OIDC provider on port 10080
+- Automatic generation of CSE configuration files (`/etc/cse/cognito-cmk.json` and `/etc/cse/admin_panel_url.json`)
+- Port availability check when creating CSE sites to ensure mock-auth is running
+- Complete OIDC flow implementation including token generation, JWKS endpoints, and authorization
+- Fixed tenant ID for consistent testing (`092fd467-0d2f-4e0a-90b8-4ee6494f7453`)
+
+To use: Run `mock-auth` before creating CSE sites with `cmk-dev-site`.
+
+[1.9.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.9.0
+
+## [1.8.0] - 2025-11-10T17:25:50+01:00
+<!-- meta = {'type': 'feature', 'scope': ['internal'], 'affected': ['all']} -->
+
+With this change you can run unittests locally using `uv run pytest`.
+Also the CI will execute them.
+
+[1.8.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.8.0
+
+## [1.7.0] - 2025-11-05T16:57:08+01:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+for 2.5 and upwards you have to use the new edition names,
+for 2.4 and before you can still use the old edition names.
+
+[1.7.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.7.0
+
+## [1.6.5] - 2025-11-04T10:36:14+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+stop using legacy hook name
+
+[1.6.5]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.5
+
+## [1.6.4] - 2025-11-04T08:27:42+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+update all dependencies
+
+[1.6.4]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.4
+
+## [1.6.3] - 2025-11-04T08:27:42+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['external'], 'affected': ['all']} -->
+
+Tracing is not supported on all editions (not the CSE). In case we cannot setup tracing during
+site creation just print a warning and leave tracing unconfigured.
+
+[1.6.3]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.3
+
+## [1.6.2] - 2025-10-30T08:46:48+01:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+previously you may have seen:
+```
+cmk_dev_site.cmk.rest_api.CheckmkAPIException: Failed to create site connection
+```
+
+this is now fixed.
+
+[1.6.2]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.2
+
+## [1.6.1] - 2025-10-22T18:20:50+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Using the partial version without a VPN results in long wait times when searching for TSBUILDS, as the URL is inaccessible.
+This change omits the TSBUILDS URL from the search, improving performance for users without a VPN.
+
+[1.6.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.1
+
+## [1.6.0] - 2025-10-22T11:29:28+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+The logging decorator now includes an optional flag to print the output of functions.
+Additionally, the `url_exist` message has been removed to prevent unnecessary information from being displayed.
+
+[1.6.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.6.0
+
+## [1.5.0] - 2025-10-22T11:12:49+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+cmk-dev-install (or cmk-dev-site-install) now support `2.M.0{pP|bB}-rcN` as version input.
+`N` stands for the release candidate number.
+
+[1.5.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.5.0
+
+## [1.4.2] - 2025-10-14T08:35:51+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Correct path to Jenkins job providing the package artifact. With CMK-26121 the build package job was split into pre-build, build and sign. This change sets the overall `trigger-cmk-distro-package` as job instead of the `trigger-cmk-distro-package` which would allocate resources longer due to the waittime for the pre-build part. Additionally the package would not be signed.
+
+[1.4.2]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.4.2
+
+## [1.4.1] - 2025-09-24T13:15:08+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+Appended a trailing slash so no HTTP-redirect takes place.
+
+[1.4.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.4.1
+
+## [1.4.0] - 2025-09-24T13:15:08+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+It's now possible to use `-vvvv` and `-vvvvv` to get verbose http request
+logging.
+
+[1.4.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.4.0
+
+## [1.3.0] - 2025-09-24T13:13:47+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+The shown rate is for the overall download, so it stabilizes over time.
+
+[1.3.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.3.0
+
+## [1.2.1] - 2025-09-09T08:19:44+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+This resolves the problem of working without a vpn by introducing faster test for checking vpn.
+Additionally, the bug for resolving package hash on tstbuilds server has resolved.
+
+[1.2.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.2.1
+
+## [1.2.0] - 2025-08-26T17:37:14+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+User can use `--omd-config` to add list of key-value for OMD config.
+
+[1.2.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.2.0
+
+## [1.1.1] - 2025-08-25T11:58:43+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+remove the mandatory `-f` for `cmk-dev-install` when using
+`cmk-dev-install-site`
+
+[1.1.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.1.1
+
+## [1.1.0] - 2025-08-18T18:46:19+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+The log output is more concise and now includes the site link.
+
+[1.1.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.1.0
+
+## [1.0.0] - 2025-08-18T14:43:43+02:00
+<!-- meta = {'type': 'breaking', 'scope': ['all'], 'affected': ['all']} -->
+
+We hope to restore `cmk-dev` in the future but have to coordinate
+internally, which takes some time.
+
+[1.0.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//1.0.0
+
+## [0.4.1] - 2025-08-18T12:36:24+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+previously the following error was visible when executed without sub command.
+
+```
+AttributeError: 'Namespace' object has no attribute 'func'
+```
+
+now the help is printed
+
+[0.4.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.4.1
+
+## [0.4.0] - 2025-08-18T08:21:29+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+Now `--name` is available to specify the name of the site created with
+`cmk-dev site-install`.
+
+[0.4.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.4.0
+
+## [0.3.0] - 2025-08-14T08:52:11+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+`cmk-dev install-site` and its alias `cmk-dev is` is a shortcut wrapper around
+`cmk-dev install` and `cmk-dev site`. It can be used to install the version and
+create a site with one simple command.
+
+This also introduce the `cmk-dev` command which has currently three
+subcommands: `site`, `install`, `install-site`.
+
+[0.3.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.3.0
+
+## [0.2.5] - 2025-08-11T10:21:04+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['all'], 'affected': ['all']} -->
+
+The `run_command` function is now wrapped by the caller module to automatically log both stdout and stderr for each command when debug logging is enabled via `-v`.
+
+[0.2.5]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.5
+
+## [0.2.4] - 2025-08-05T15:08:29+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+inline documentation instead
+
+[0.2.4]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.4
+
+## [0.2.3] - 2025-08-04T15:42:43+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+netstat is deprecated, fresh installs do not have netstat
+
+[0.2.3]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.3
+
+## [0.2.2] - 2025-08-04T15:42:37+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+failed in core logic
+
+[0.2.2]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.2
+
+## [0.2.1] - 2025-07-31T14:24:35+02:00
+<!-- meta = {'type': 'bugfix', 'scope': ['internal'], 'affected': ['all']} -->
+
+Moved toplevel python modules into cmk_dev_site module.
+
+This fixes
+
+```
+ModuleNotFoundError: No module named 'cmk'
+```
+
+[0.2.1]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.1
+
+## [0.2.0] - 2025-07-31T12:58:49+02:00
+<!-- meta = {'type': 'feature', 'scope': ['internal'], 'affected': ['all']} -->
+
+New modules for `rest_api`, omd version, and logging has been created to increase reuse.
+
+[0.2.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.2.0
+
+## [0.1.0] - 2025-07-15T10:40:06+02:00
+<!-- meta = {'type': 'feature', 'scope': ['all'], 'affected': ['all']} -->
+
+Make `cmk-dev-site` package public
+
+[0.1.0]: https://review.lan.tribe29.com/gitweb?p=checkmk_dev_tools.git;a=tag;h=refs/tags//0.1.0
+
 ## [0.0.0] - 2025-07-14
 ### Added
 - Make `cmk-dev-site` public
