@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,11 +7,13 @@ import pytest
 from cmk_dev_site.cmk_dev_install import (
     CMK_DOWNLOAD_URL,
     TSBUILD_URL,
+    find_cached_deb,
     find_last_release,
     parse_version,
 )
 from cmk_dev_site.omd import (
     BaseVersion,
+    CMKPackage,
     Edition,
     VersionWithPatch,
     VersionWithReleaseDate,
@@ -112,3 +115,23 @@ def test_find_last_release(
         )
 
         assert str(result.version) == expected_version
+
+
+def _make_pkg() -> CMKPackage:
+    return CMKPackage(
+        version=VersionWithPatch(base_version=BaseVersion(2, 5, 0), patch_type="p", patch=1),
+        edition=Edition.PRO,
+        distro_codename="jammy",
+    )
+
+
+def test_find_cached_deb_returns_path_when_exists(tmp_path: Path) -> None:
+    pkg = _make_pkg()
+    deb = tmp_path / pkg.package_name
+    deb.touch()
+    assert find_cached_deb(pkg, download_dir=tmp_path) == deb
+
+
+def test_find_cached_deb_returns_none_when_missing(tmp_path: Path) -> None:
+    pkg = _make_pkg()
+    assert find_cached_deb(pkg, download_dir=tmp_path) is None

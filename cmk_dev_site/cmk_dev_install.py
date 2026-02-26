@@ -61,6 +61,12 @@ CMK_DOWNLOAD_URL = "https://download.checkmk.com/checkmk"
 DOWNLOAD_DIR = Path("/tmp")
 
 
+def find_cached_deb(pkg: CMKPackage, download_dir: Path = DOWNLOAD_DIR) -> Path | None:
+    """Return the path to a cached .deb file in download_dir if it exists, else None."""
+    path = download_dir / pkg.package_name
+    return path if path.exists() else None
+
+
 def run_command(
     args: Sequence[str],
     check: bool = True,
@@ -674,21 +680,13 @@ def validate_installation(cmk_pkg: CMKPackage, force: bool, download_only: bool)
     return True
 
 
-def download_and_install_cmk_pkg(
+def _fetch_and_verify(
     file_server: FileServer,
     urls: list[str],
     cmk_pkg: CMKPackage,
-    force: bool,
-    download_only: bool,
-) -> CMKPackage:
-    """
-    Download and install a Checkmk package.
-    """
-    if not validate_installation(cmk_pkg, force, download_only):
-        set_default_version(cmk_pkg.omd_version)
-        return cmk_pkg
-
-    download_path = DOWNLOAD_DIR / cmk_pkg.package_name
+    download_path: Path,
+) -> None:
+    """Find a valid download URL, fetch the package, and verify its hash."""
     valid_url = None
     for url in urls:
         logger.debug(f"Checking URL: {url}")
@@ -708,6 +706,30 @@ def download_and_install_cmk_pkg(
     )
     if not (file_server.verify_hash(valid_url, download_path)):
         raise RuntimeError("ERROR: Hash verification failed.")
+
+
+def download_and_install_cmk_pkg(
+    file_server: FileServer,
+    urls: list[str],
+    cmk_pkg: CMKPackage,
+    force: bool,
+    download_only: bool,
+) -> CMKPackage:
+    """
+    Download and install a Checkmk package.
+    """
+    if not validate_installation(cmk_pkg, force, download_only):
+        set_default_version(cmk_pkg.omd_version)
+        return cmk_pkg
+
+    download_path = DOWNLOAD_DIR / cmk_pkg.package_name
+    cached = find_cached_deb(cmk_pkg, DOWNLOAD_DIR)
+    if cached is not None and not force:
+        logger.info("Found cached .deb at %s, skipping download", cached)
+    else:
+        if cached is not None and force:
+            logger.info("--force specified, ignoring cached .deb")
+        _fetch_and_verify(file_server, urls, cmk_pkg, download_path)
     if not download_only:
         remove_package(cmk_pkg.package_raw_name, INSTALLATION_PATH / Path(cmk_pkg.omd_version))
         install_package(download_path)
