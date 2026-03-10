@@ -54,11 +54,18 @@ Changelog = "https://github.com/Checkmk/cmk-dev-site/blob/CHANGE_ME_I_AM_A_CHANG
 path = "cmk_dev_site/version.py"
 
 # https://hatch.pypa.io/1.13/config/build/#vcs
-# auto generated file cmk_dev_site/version.py would be excluded otherwise
+# Bazel artifacts are symlinks that cause build errors, so exclude them
+# version.py is gitignored but must be included in the package
 [tool.hatch.build.targets.sdist]
-ignore-vcs = true
+only-include = ["cmk_dev_site", "tests"]
+exclude = [
+    "bazel-*",
+]
+force-include = { "cmk_dev_site/version.py" = "cmk_dev_site/version.py" }
+
 [tool.hatch.build.targets.wheel]
-ignore-vcs = true
+packages = ["cmk_dev_site"]
+force-include = { "cmk_dev_site/version.py" = "cmk_dev_site/version.py" }
 
 [tool.ruff]
 # Base configuration
