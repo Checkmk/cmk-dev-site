@@ -753,8 +753,12 @@ def core_logic(
         ensure_sudo()
 
     download_urls = [CMK_DOWNLOAD_URL]
-    if edition is Edition.OLD_SAAS or edition is Edition.CLOUD:
-        # cloud editions are only available via tstbuilds
+    if (
+        edition is Edition.OLD_SAAS
+        or edition is Edition.CLOUD
+        or isinstance(version, VersionWithReleaseCandidate)
+    ):
+        # cloud editions and release candidates are only available via tstbuilds
         download_urls = [TSBUILD_URL]
 
     user, password = get_user_pass()
