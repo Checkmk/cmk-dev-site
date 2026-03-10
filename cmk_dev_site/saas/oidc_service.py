@@ -10,7 +10,9 @@ Note: the signed-in user is hardcoded and cannot be changed.
 
 import argparse
 import base64
+import html
 import logging
+import secrets
 from binascii import unhexlify
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Literal
@@ -101,6 +103,18 @@ class TokenPayload(BaseModel):
     email: str
     aud: str
     sub: str = "1234567"
+    user_role: Literal["user", "admin"]
+    tenant_id: str = TENANT_ID
+
+
+class AuthorizationCodeData(BaseModel):
+    username: str
+    user_role: Literal["user", "admin"]
+
+
+DEFAULT_USERNAME = "test@test.com"
+DEFAULT_ROLE: Literal["user", "admin"] = "admin"
+AUTHORIZATION_CODES: dict[str, AuthorizationCodeData] = {}
 
 
 @application.get("/.well-known/openid-configuration", status_code=200)
@@ -124,27 +138,46 @@ def liveness() -> str:
 
 
 @application.post("/token", response_model=TokenResponse)
-def token(client_id: Annotated[str, fapi.Form()]) -> TokenResponse:
-    payload = TokenPayload(email="test@test.com", aud=client_id)
+def token(
+    client_id: Annotated[str, fapi.Form()], code: Annotated[str, fapi.Form()]
+) -> TokenResponse:
+    try:
+        login_data = AUTHORIZATION_CODES.pop(code)
+    except KeyError as exc:
+        raise fapi.HTTPException(status_code=400, detail="Invalid authorization code") from exc
+
+    payload = TokenPayload(
+        email=login_data.username,
+        aud=client_id,
+        sub=login_data.username,
+        user_role=login_data.user_role,
+    )
     id_token = jwt.encode(
         payload.model_dump(), KEY.private, algorithm="RS256", headers={"kid": KEY.kid}
     )
-    # access token can be a random secret string. id-token is good enough for this fake
     return TokenResponse(id_token=id_token, access_token=id_token)
 
 
-@application.get("/authorize")
-def authorize(state: str, redirect_uri: str) -> fapi.responses.RedirectResponse:
-    params = {"state": state, "code": "fake"}
-    url = f"{redirect_uri}?{urlencode(params)}"
-    return fapi.responses.RedirectResponse(url)
-
-
-# this endpoint is used by checkmk to authorize the user on a site
-# given he belongs to the right tenant
 @application.get("/api/users/me/tenants")
-def tenant_role_mapping() -> UserRoleAnswer:
-    return UserRoleAnswer(tenants={TENANT_ID: TenantInfo(user_role="admin")})
+def tenant_role_mapping(
+    authorization: Annotated[str | None, fapi.Header()] = None,
+) -> UserRoleAnswer:
+    if authorization is None:
+        raise fapi.HTTPException(status_code=401, detail="Missing Authorization header")
+
+    scheme, _, token_str = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token_str:
+        raise fapi.HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    try:
+        decoded = jwt.decode(
+            token_str, KEY.public, algorithms=["RS256"], options={"verify_aud": False}
+        )
+        payload = TokenPayload.model_validate(decoded)
+    except jwt.InvalidTokenError as exc:
+        raise fapi.HTTPException(status_code=401, detail="Invalid token") from exc
+
+    return UserRoleAnswer(tenants={payload.tenant_id: TenantInfo(user_role=payload.user_role)})
 
 
 @application.get("/logout")
@@ -185,3 +218,41 @@ def run() -> None:
 
         logger.debug("starting uvicorn")
         uvicorn.run(application, port=OIDC_PORT, host=HOST, log_level=log_level)
+
+
+@application.get("/authorize")
+def authorize(state: str, redirect_uri: str) -> fapi.responses.HTMLResponse:
+    escaped_state = html.escape(state, quote=True)
+    escaped_redirect_uri = html.escape(redirect_uri, quote=True)
+    escaped_username = html.escape(DEFAULT_USERNAME, quote=True)
+    checked_user = " checked" if DEFAULT_ROLE == "user" else ""
+    checked_admin = " checked" if DEFAULT_ROLE == "admin" else ""
+
+    page = f"""<!doctype html>
+<html>
+<body>
+<form method="post" action="/authorize">
+<input type="hidden" name="state" value="{escaped_state}">
+<input type="hidden" name="redirect_uri" value="{escaped_redirect_uri}">
+<label>Username <input type="text" name="username" value="{escaped_username}"></label>
+<label><input type="radio" name="role" value="user"{checked_user}> user</label>
+<label><input type="radio" name="role" value="admin"{checked_admin}> admin</label>
+<button type="submit">Login</button>
+</form>
+</body>
+</html>"""
+    return fapi.responses.HTMLResponse(page)
+
+
+@application.post("/authorize")
+def authorize_login(
+    state: Annotated[str, fapi.Form()],
+    redirect_uri: Annotated[str, fapi.Form()],
+    username: Annotated[str, fapi.Form()],
+    role: Annotated[Literal["user", "admin"], fapi.Form()],
+) -> fapi.responses.RedirectResponse:
+    code = secrets.token_urlsafe(16)
+    AUTHORIZATION_CODES[code] = AuthorizationCodeData(username=username, user_role=role)
+    params = {"state": state, "code": code}
+    url = f"{redirect_uri}?{urlencode(params)}"
+    return fapi.responses.RedirectResponse(url, status_code=303)
