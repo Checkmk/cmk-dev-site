@@ -589,14 +589,14 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument(
         "build",
-        metavar="version",
+        metavar="build-version",
         type=parse_version,
         nargs="?",
-        help=f"""specify the version in one of the following formats:
+        help=f"""specify the build version in one of the following formats:
 
   {colorize("2.4.0-daily", "green")}: install today's daily version
   {colorize("2.4", "green")}: install the latest available daily build
-  {colorize("2.4.0-2025-01-01", "green")}: install specific daily version
+  {colorize("2.4.0-YYYY-MM-DD", "green")} (e.g. 2.4.0-2025-01-30): install specific daily version
   {colorize("2.4.0p23", "green")}: install released patch version
   {colorize("git:master:39f57c98f92", "green")}: Build and install from a specific
     branch and commit
