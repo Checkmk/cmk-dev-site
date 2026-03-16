@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 def setup_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "version",
+        metavar="build-version",
         nargs="?",
         default=None,
     )
@@ -140,7 +141,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(sys_argv: list[str] | None = None) -> int:
+def main(_sys_argv: list[str] | None = None) -> int:
     with clean_cli_exit():
         parser = create_parser()
         setup_parser(parser)
