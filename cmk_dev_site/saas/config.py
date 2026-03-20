@@ -16,4 +16,5 @@ class AdminPanelUrlConfig(BaseModel):
     uap_url: str = "https://admin-panel.saas-prod.cloudsandbox.checkmk.cloud/"
     bug_tracker_url: str = "https://admin-panel.saas-prod.cloudsandbox.checkmk.cloud/bug-report"
     download_agent_user: str = "automation"
+    otel_collector_receiver_activation_script_path: str = "/usr/bin/true"
     tenant_id: str = TENANT_ID

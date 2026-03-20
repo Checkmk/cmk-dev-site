@@ -3,6 +3,7 @@ from urllib.parse import parse_qs, urlparse
 import fastapi as fapi
 import jwt
 
+from cmk_dev_site.saas.config import AdminPanelUrlConfig
 from cmk_dev_site.saas.constants import TENANT_ID
 from cmk_dev_site.saas.oidc_service import (
     AUTHORIZATION_CODES,
@@ -93,3 +94,9 @@ def test_token_rejects_unknown_authorization_code() -> None:
         assert exc.detail == "Invalid authorization code"
     else:
         raise AssertionError("expected invalid authorization code to be rejected")
+
+
+def test_admin_panel_config_contains_otel_activation_script_path() -> None:
+    payload = AdminPanelUrlConfig().model_dump()
+
+    assert payload["otel_collector_receiver_activation_script_path"] == "/usr/bin/true"
