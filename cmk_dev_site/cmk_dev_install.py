@@ -524,6 +524,12 @@ def apply_acls_to_version(version: str) -> None:
 
     if not version_path.exists():
         raise RuntimeError(f"ERROR: Version {version_path.name} does not exist")
+    if not shutil.which("setfacl"):
+        logger.info("'setfacl' not found, installing 'acl' package...")
+        run_command(
+            ["sudo", "apt-get", "install", "-y", "acl"],
+            error_message="Failed to install 'acl' package",
+        )
     run_command(
         [
             "sudo",
