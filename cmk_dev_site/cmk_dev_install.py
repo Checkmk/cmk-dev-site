@@ -524,6 +524,19 @@ def apply_acls_to_version(version: str) -> None:
 
     if not version_path.exists():
         raise RuntimeError(f"ERROR: Version {version_path.name} does not exist")
+    if not shutil.which("setfacl"):
+        logger.warning(
+            "'setfacl' not found, skipping ACL setup for %s. "
+            "As a result, you may not be able to write files or apply changes "
+            "in %s as the current user. "
+            "To fix this, install the 'acl' package and reinstall the version:\n"
+            "  sudo apt-get install acl\n"
+            "  cmk-dev-install %s",
+            version,
+            version_path,
+            version,
+        )
+        return
     run_command(
         [
             "sudo",
