@@ -438,15 +438,21 @@ def build_install_git_version(
             "To have 'ci-artifacts' available, run 'pip install checkmk-dev-tools' and try again"
         )
 
+    job_name = "trigger-cmk-distro-package"
+    job_edition = str(edition.name.lower())
+    if branch in ("2.3.0", "2.4.0"):
+        job_name = "build-cmk-distro-package"
+        job_edition = job_edition.removeprefix("old_")
+
     result = run_command(
         [
             "ci-artifacts",
             "fetch",
-            f"checkmk/{branch}/builders/trigger-cmk-distro-package",
+            f"checkmk/{branch}/builders/{job_name}",
             "--out-dir",
             "/tmp/",
             "--no-remove-others",
-            f"--params=DISTRO=ubuntu-{distro_id},EDITION={edition.name.lower()},CUSTOM_GIT_REF={commit_hash}",
+            f"--params=DISTRO=ubuntu-{distro_id},EDITION={job_edition},CUSTOM_GIT_REF={commit_hash}",
         ],
     )
     typed_result = ArtifactsResult(**json.loads(result.stdout))
