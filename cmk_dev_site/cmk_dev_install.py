@@ -440,7 +440,7 @@ def build_install_git_version(
         job_name = "build-cmk-distro-package"
         job_edition = job_edition.removeprefix("old_")
 
-    result = run_command(
+    result = subprocess.run(
         [
             str(ci_artifacts),
             "fetch",
@@ -450,6 +450,9 @@ def build_install_git_version(
             "--no-remove-others",
             f"--params=DISTRO=ubuntu-{distro_id},EDITION={job_edition},CUSTOM_GIT_REF={commit_hash}",
         ],
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
     )
     typed_result = ArtifactsResult(**json.loads(result.stdout))
     if typed_result.result == "FAILURE":
