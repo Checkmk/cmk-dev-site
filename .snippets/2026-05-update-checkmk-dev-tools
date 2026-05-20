@@ -1,0 +1,7 @@
+## relax checkmk-dev-tools constraints
+<!--
+type: bugfix
+scope: internal
+affected: all
+-->
+

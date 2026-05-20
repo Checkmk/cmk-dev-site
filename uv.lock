@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11, <4.0"
 
 [[package]]
@@ -209,19 +209,18 @@ wheels = [
 
 [[package]]
 name = "checkmk-dev-tools"
-version = "0.14.0"
+version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "influxdb-client" },
     { name = "pydantic" },
     { name = "python-jenkins" },
-    { name = "retry" },
     { name = "rich" },
     { name = "trickkiste" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/6b/594bdc3e77076701c4fb586c72b339744169fa713303bbb065b7f0aa95b4/checkmk_dev_tools-0.14.0.tar.gz", hash = "sha256:344517be1591ab92fc859af8383f1bac57e78a9798fde559c9ae79cfb3b5e574", size = 48403, upload-time = "2025-09-24T12:03:39.875Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/8d/a6ba30cb5e476f56223cb10d9f41a03ca7ef5bff188bb884f2835aede74b/checkmk_dev_tools-2.2.0.tar.gz", hash = "sha256:9c667d0da9c729cc9e749f9e66eeaf178400e840d95499f38aa9161fd94f3dae", size = 51777, upload-time = "2026-03-25T08:46:46.012Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/15/69e7a8331007faf60e56fac0861bb334b06000300124fbab9934b96bd935/checkmk_dev_tools-0.14.0-py3-none-any.whl", hash = "sha256:fb33891e84956d80d7ab5f8d50e6e96c6022fd3fd14290b561b0c367a46ad991", size = 51105, upload-time = "2025-09-24T12:03:38.647Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/3f/896e2d62450d9a900b905d33ff4dcdf10b7696525920759e3acc4658b8cd/checkmk_dev_tools-2.2.0-py3-none-any.whl", hash = "sha256:cdf417133338cd670b5ea15c2ecf64bf77a41eff797562a449ed3efc2b0eadf9", size = 54181, upload-time = "2026-03-25T08:46:44.516Z" },
 ]
 
 [[package]]
@@ -260,7 +259,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "checkmk-dev-tools", specifier = ">=0.10.1,<1" },
+    { name = "checkmk-dev-tools", specifier = ">=2.2.0" },
     { name = "fastapi" },
     { name = "pyjwt", extras = ["crypto"] },
     { name = "python-multipart", specifier = ">=0.0.20" },
@@ -347,15 +346,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/99/55/181022996c4063fc0e7666a47049a1ca705abb9c8a13830f074edb347495/cryptography-46.0.3-pp311-pypy311_pp73-manylinux_2_34_aarch64.whl", hash = "sha256:9394673a9f4de09e28b5356e7fff97d778f8abad85c9d5ac4a4b7e25a0de7717", size = 4242957, upload-time = "2025-10-15T23:18:22.18Z" },
     { url = "https://files.pythonhosted.org/packages/ba/af/72cd6ef29f9c5f731251acadaeb821559fe25f10852f44a63374c9ca08c1/cryptography-46.0.3-pp311-pypy311_pp73-manylinux_2_34_x86_64.whl", hash = "sha256:94cd0549accc38d1494e1f8de71eca837d0509d0d44bf11d158524b0e12cebf9", size = 4409447, upload-time = "2025-10-15T23:18:24.209Z" },
     { url = "https://files.pythonhosted.org/packages/0d/c3/e90f4a4feae6410f914f8ebac129b9ae7a8c92eb60a638012dde42030a9d/cryptography-46.0.3-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:6b5063083824e5509fdba180721d55909ffacccc8adbec85268b48439423d78c", size = 3438528, upload-time = "2025-10-15T23:18:26.227Z" },
-]
-
-[[package]]
-name = "decorator"
-version = "5.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/43/fa/6d96a0978d19e17b68d634497769987b16c8f4cd0a7a05048bec693caa6b/decorator-5.2.1.tar.gz", hash = "sha256:65f266143752f734b0a7cc83c46f4618af75b8c5911b00ccb61d0ac9b6da0360", size = 56711, upload-time = "2025-02-24T04:41:34.073Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/8c/f3147f5c4b73e7550fe5f9352eaa956ae838d5c51eb58e7a25b9f3e2643b/decorator-5.2.1-py3-none-any.whl", hash = "sha256:d316bb415a2d9e2d2b3abcc4084c6502fc09240e292cd76a76afc106a1c8e04a", size = 9190, upload-time = "2025-02-24T04:41:32.565Z" },
 ]
 
 [[package]]
@@ -731,15 +721,6 @@ wheels = [
 ]
 
 [[package]]
-name = "py"
-version = "1.11.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/98/ff/fec109ceb715d2a6b4c4a85a61af3b40c723a961e8828319fbcb15b868dc/py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719", size = 207796, upload-time = "2021-11-04T17:17:01.377Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/f0/10642828a8dfb741e5f3fbaac830550a518a775c7fff6f04a007259b0548/py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378", size = 98708, upload-time = "2021-11-04T17:17:00.152Z" },
-]
-
-[[package]]
 name = "pycparser"
 version = "2.23"
 source = { registry = "https://pypi.org/simple" }
@@ -1065,19 +1046,6 @@ wheels = [
 ]
 
 [[package]]
-name = "retry"
-version = "0.9.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "decorator" },
-    { name = "py" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9d/72/75d0b85443fbc8d9f38d08d2b1b67cc184ce35280e4a3813cda2f445f3a4/retry-0.9.2.tar.gz", hash = "sha256:f8bfa8b99b69c4506d6f5bd3b0aabf77f98cdb17f3c9fc3f5ca820033336fba4", size = 6448, upload-time = "2016-05-11T13:58:51.541Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/0d/53aea75710af4528a25ed6837d71d117602b01946b307a3912cb3cfcbcba/retry-0.9.2-py2.py3-none-any.whl", hash = "sha256:ccddf89761fa2c726ab29391837d4327f819ea14d244c232a1d24c67a2f98606", size = 7986, upload-time = "2016-05-11T13:58:39.925Z" },
-]
-
-[[package]]
 name = "rfc3986"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1204,14 +1172,14 @@ wheels = [
 
 [[package]]
 name = "trickkiste"
-version = "0.2.2"
+version = "0.3.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fe/5f/be6a138dfc41e24e33c6d40c041a69d997aae1c9cb904b75858bcbdd0bcf/trickkiste-0.2.2.tar.gz", hash = "sha256:17942721921b2df2d814a29c452b3951579238774e48bd9108f11c2863f2d6e6", size = 12606, upload-time = "2024-11-12T08:28:45.667Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/82/95e2840864bbf6be2e3773424400773e9ab104c59ada744fe03412ddd2be/trickkiste-0.3.7.tar.gz", hash = "sha256:c0f447922ce76310fcb7f1b8b446da4f921d290c57bdd82126b9fe2c3a4284d3", size = 55526, upload-time = "2026-03-16T13:48:04.362Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/81/d58188809d91b833196e58946910d892d47ad617d0e30ed6b68b6d6f8469/trickkiste-0.2.2-py3-none-any.whl", hash = "sha256:3e9ffe162e84db20106fce0ad913694b3264471b210e0db3788488af90920c91", size = 14784, upload-time = "2024-11-12T08:28:44.615Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/fb/b8862d2e799f0927c39a377393c2587d44e3161304895b9972f8393faaa2/trickkiste-0.3.7-py3-none-any.whl", hash = "sha256:f02f79a59eb9756e97c54bd531ba41a736953a18f94809bd05a10869186ef9ed", size = 22932, upload-time = "2026-03-16T13:48:05.307Z" },
 ]
 
 [[package]]

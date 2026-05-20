@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "requests",
-  "checkmk-dev-tools>=0.10.1,<1",
+  "checkmk-dev-tools>=2.2.0",
   "pyjwt[crypto]",
   "fastapi", # absolute minimum fastapi
   "uvicorn", # ASGI worker
