@@ -40,6 +40,17 @@ def _map_edition_to_package_name(edition: Edition) -> str:
             return edition.value
 
 
+def edition_value_from_package_name(package_edition: str) -> str:
+    """Map a debian package edition (e.g. "enterprise") to the OMD edition value (e.g. "cee").
+
+    Inverse of :func:`_map_edition_to_package_name`. Unknown names are returned
+    unchanged. Note that "cloud" is ambiguous between the old (cce) and new (cloud)
+    editions; the new edition wins to match the package naming for current versions.
+    """
+    by_package_name = {_map_edition_to_package_name(edition): edition.value for edition in Edition}
+    return by_package_name.get(package_edition, package_edition)
+
+
 @functools.total_ordering
 class BaseVersion:
     def __init__(self, major: int, minor: int, patch: int = 0):

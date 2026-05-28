@@ -36,6 +36,9 @@ cmk-dev-install 2.5.0-daily && cmk-dev-site -d 1
 
 # Download and install raw edition package
 cmk-dev-install --edition=cre 2.5.0-daily
+
+# Install a local .deb file instead of downloading
+cmk-dev-install -p ./check-mk-enterprise-2.4.0p9_0.noble_amd64.deb
 ```
 ### `cmk-dev-install-site`
 

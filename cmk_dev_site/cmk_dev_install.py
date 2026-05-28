@@ -44,6 +44,7 @@ from .omd import (
     VersionWithPatch,
     VersionWithReleaseCandidate,
     VersionWithReleaseDate,
+    edition_value_from_package_name,
 )
 from .utils import run_command as run_command_c
 from .utils.cli import clean_cli_exit
@@ -132,6 +133,22 @@ def remove_package(pkg_name: str, installed_path: Path) -> None:
                 pkg_name,
             ],
         )
+
+
+def _existing_deb_path(value: str) -> Path:
+    deb_path = Path(value)
+    if not deb_path.is_file():
+        raise argparse.ArgumentTypeError(f"deb file does not exist: {deb_path}")
+    return deb_path
+
+
+def _omd_version_from_deb_path(deb_path: Path) -> str:
+    # Reverse the package naming done in omd.CMKPackage.package_name:
+    #   check-mk-<edition>-<version>_0.<distro>_<arch>.deb -> <version>.<edition value>
+    name = re.sub(r"_0\.[^_]+_[^_]+$", "", deb_path.stem)
+    name = name.removeprefix("check-mk-")
+    edition_pkg, version_str = name.split("-", 1)
+    return f"{version_str}.{edition_value_from_package_name(edition_pkg)}"
 
 
 @log()
@@ -584,6 +601,7 @@ class DevInstallArgs(argparse.Namespace):
     verbose: int
     quiet: int
     download_only: bool
+    path: Path | None
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -654,6 +672,12 @@ latest branch that can be found.
         "--download-only",
         action="store_true",
         help="download only (do not install)",
+    )
+    parser.add_argument(
+        "-p",
+        "--path",
+        type=_existing_deb_path,
+        help="specify the deb file to install",
     )
 
 
@@ -918,6 +942,16 @@ def execute(args: argparse.Namespace) -> int:
             colorize("cmk-dev-site version:", "cyan"),
             colorize(str(__version__), "green"),
         )
+
+    if args.path:
+        deb_path = args.path
+        ensure_sudo()
+        install_package(deb_path)
+        omd_version = _omd_version_from_deb_path(deb_path)
+        apply_acls_to_version(omd_version)
+        print(omd_version)
+        return 0
+
     try:
         version, edition = validate_version_edition(args.build, args.edition)
         installed_version, pkg_path = core_logic(version, edition, args.force, args.download_only)
