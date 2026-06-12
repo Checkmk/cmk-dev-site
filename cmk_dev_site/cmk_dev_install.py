@@ -202,33 +202,49 @@ def get_distro_version_info() -> DistroVersionInfo:
     raise RuntimeError("ERROR: Unsupported distribution or missing version info.")
 
 
+def redirect_discontinued_minor(base: BaseVersion) -> BaseVersion:
+    """Redirect a requested 2.6 version to 3.0.
+
+    There is no 2.6 release: the version after 2.5.0 is 3.0.0. When a user asks
+    for 2.6 we understand they want 3.0, so remap the base version explicitly.
+    Using ``type(base)`` preserves a ``PartialVersion`` (e.g. the bare "2.6" form).
+    """
+    if (base.major, base.minor) == (2, 6):
+        logger.info("There is no 2.6 release; using 3.0 instead.")
+        return type(base)(3, 0)
+    return base
+
+
 def parse_version(
     version: str,
 ) -> Version:
     """Parse the version string into a Version object."""
 
+    def base(version_str: str) -> BaseVersion:
+        return redirect_discontinued_minor(BaseVersion.from_str(version_str))
+
     if match := re.match(r"^(\d+\.\d+\.\d+)-daily$", version):
         return VersionWithReleaseDate(
-            base_version=BaseVersion.from_str(match.group(1)),
+            base_version=base(match.group(1)),
             release_date=datetime.today().date(),
         )
 
     if match := re.match(r"^(\d+\.\d)+$", version):
-        return PartialVersion.from_str(match.group(1))
+        return redirect_discontinued_minor(PartialVersion.from_str(match.group(1)))
 
     if match := re.match(r"^(\d+\.\d+\.\d+)$", version):
-        return BaseVersion.from_str(match.group(1))
+        return base(match.group(1))
 
     if match := re.match(r"^(\d+\.\d+(?:\.\d+)?)(p|b)(\d+)$", version):
         return VersionWithPatch(
-            base_version=BaseVersion.from_str(match.group(1)),
+            base_version=base(match.group(1)),
             patch_type="p" if match.group(2) == "p" else "b",
             patch=int(match.group(3)),
         )
 
     if match := re.match(r"^(\d+\.\d+(?:\.\d+)?)(p|b)(\d+)-rc(\d+)$", version):
         return VersionWithReleaseCandidate(
-            base_version=BaseVersion.from_str(match.group(1)),
+            base_version=base(match.group(1)),
             patch_type="p" if match.group(2) == "p" else "b",
             patch=int(match.group(3)),
             rc=int(match.group(4)),
@@ -241,7 +257,7 @@ def parse_version(
 
     if match := re.match(r"^(\d+\.\d+\.\d+)-(\d+[.-]\d+[.-]\d+)$", version):
         return VersionWithReleaseDate(
-            base_version=BaseVersion.from_str(match.group(1)),
+            base_version=base(match.group(1)),
             release_date=datetime.strptime(match.group(2).replace(".", "-"), "%Y-%m-%d").date(),
         )
 
@@ -874,9 +890,9 @@ def validate_version_edition(
             case GitVersion():
                 editions_to_use = "dontknow"
             case _:
-                if base_version.major != 2:
-                    raise RuntimeError("the future is now!")
-                if base_version.minor < 5:
+                # editions changed with 2.5.0: versions older than that use the
+                # old specifiers, 2.5.0 and newer (incl. 3.x) use the new ones.
+                if base_version < BaseVersion(2, 5, 0):
                     editions_to_use = "pre250"
 
     # first we want to figure out the default edition,

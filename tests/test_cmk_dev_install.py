@@ -10,11 +10,13 @@ from cmk_dev_site.cmk_dev_install import (
     find_cached_deb,
     find_last_release,
     parse_version,
+    validate_version_edition,
 )
 from cmk_dev_site.omd import (
     BaseVersion,
     CMKPackage,
     Edition,
+    PartialVersion,
     VersionWithPatch,
     VersionWithReleaseDate,
 )
@@ -27,6 +29,30 @@ def test_parse_version():
     assert parsed_version.base_version == BaseVersion(2, 3, 0)
     assert parsed_version.patch_type == "p"
     assert parsed_version.patch == 1
+
+
+def test_parse_version_redirects_2_6_to_3_0():
+    # there is no 2.6 release: 2.5.0 is followed by 3.0.0
+    assert parse_version("2.6.0") == BaseVersion(3, 0, 0)
+
+    partial = parse_version("2.6")
+    assert isinstance(partial, PartialVersion)
+    assert partial == BaseVersion(3, 0, 0)
+
+    with_patch = parse_version("2.6.0p1")
+    assert isinstance(with_patch, VersionWithPatch)
+    assert with_patch.base_version == BaseVersion(3, 0, 0)
+    assert with_patch.patch == 1
+
+    daily = parse_version("2.6.0-daily")
+    assert isinstance(daily, VersionWithReleaseDate)
+    assert daily.base_version == BaseVersion(3, 0, 0)
+
+
+def test_parse_version_leaves_other_versions_untouched():
+    assert parse_version("2.5.0") == BaseVersion(2, 5, 0)
+    assert isinstance(parse_version("2.5"), PartialVersion)
+    assert parse_version("3.0.0") == BaseVersion(3, 0, 0)
 
 
 def _mock_list_versions_with_date_side_effect(cmk_dates: list[str], tst_dates: list[str]):
@@ -135,3 +161,24 @@ def test_find_cached_deb_returns_path_when_exists(tmp_path: Path) -> None:
 def test_find_cached_deb_returns_none_when_missing(tmp_path: Path) -> None:
     pkg = _make_pkg()
     assert find_cached_deb(pkg, download_dir=tmp_path) is None
+
+
+def test_validate_version_edition_pre_250_uses_old_editions() -> None:
+    assert validate_version_edition(BaseVersion(2, 4, 0), None) == (
+        BaseVersion(2, 4, 0),
+        Edition.OLD_ENTERPRISE,
+    )
+
+
+def test_validate_version_edition_post_240_uses_new_editions() -> None:
+    assert validate_version_edition(BaseVersion(2, 5, 0), None) == (
+        BaseVersion(2, 5, 0),
+        Edition.PRO,
+    )
+
+
+def test_validate_version_edition_supports_3x() -> None:
+    assert validate_version_edition(BaseVersion(3, 0, 0), None) == (
+        BaseVersion(3, 0, 0),
+        Edition.PRO,
+    )
