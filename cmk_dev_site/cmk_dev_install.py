@@ -465,12 +465,6 @@ def build_install_git_version(
     if not validate_jenkins_jobs_ini():
         raise RuntimeError("ERROR: Jenkins jobs ini file is not found")
 
-    if not shutil.which("ci-artifacts"):
-        raise RuntimeError(
-            "'ci-artifacts' command not found."
-            "To have 'ci-artifacts' available, run 'pip install checkmk-dev-tools' and try again"
-        )
-
     job_name = "trigger-cmk-distro-package"
     job_edition = str(edition.name.lower())
     if branch in ("2.3.0", "2.4.0"):
@@ -479,7 +473,9 @@ def build_install_git_version(
 
     result = run_command(
         [
-            "ci-artifacts",
+            sys.executable,
+            "-m",
+            "cmk_dev.ci_artifacts",
             "fetch",
             f"checkmk/{branch}/builders/{job_name}",
             "--out-dir",
