@@ -70,7 +70,17 @@ def install_args(version: str | None, edition: str | None, arg_logging_level: st
         yield arg_logging_level
 
 
-def site_args(distributed: int, arg_logging_level: str, name: str | None) -> Iterator[str]:
+def site_args(
+    version: str | None,
+    edition: str | None,
+    distributed: int,
+    arg_logging_level: str,
+    name: str | None,
+) -> Iterator[str]:
+    if version:
+        # cmk-dev-site takes the edition as a suffix on the version positional
+        # (e.g. "3.0.0-2026-06-29.ultimate"), unlike cmk-dev-install's --edition.
+        yield f"{version}.{edition}" if edition else str(version)
     if distributed:
         yield "--distributed"
         yield str(distributed)
@@ -99,7 +109,7 @@ def core(
         arg_logging_level = f"-{''.join(['v' * verbose, 'q' * quiet])}"
 
     args_install = list(install_args(version, edition, arg_logging_level))
-    args_site = list(site_args(site_distributed, arg_logging_level, site_name))
+    args_site = list(site_args(version, edition, site_distributed, arg_logging_level, site_name))
 
     print(
         "cmk-dev-install",
