@@ -142,9 +142,6 @@ class APIClient:
         logical_site_name = logical_site_name or self.site_name
         response = self.session.post(
             f"{self.base_url}/domain-types/host_config/collections/all",
-            params={
-                "bake_agent": False,
-            },
             headers={
                 "Content-Type": "application/json",
             },
