@@ -28,9 +28,10 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from enum import IntEnum
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 import requests
 
@@ -934,7 +935,20 @@ def validate_version_edition(
     return version, edition
 
 
-def execute(args: argparse.Namespace) -> int:
+class ExitCode(IntEnum):
+    SUCCESS = 0
+    ERROR = 1
+
+
+class InstallResult(NamedTuple):
+    exit_code: ExitCode
+    # the resolved OMD version (e.g. "2.3" is resolved to
+    # "2.3.0-2026.07.10.cee"), or None if the installation failed.
+    installed_version: str | None
+
+
+def execute(args: argparse.Namespace) -> InstallResult:
+    """Run the installation."""
     logger.setLevel(max(logging.INFO - ((args.verbose - args.quiet) * 10), logging.DEBUG))
 
     if args.verbose - args.quiet > 3:
@@ -962,25 +976,30 @@ def execute(args: argparse.Namespace) -> int:
         omd_version = _omd_version_from_deb_path(deb_path)
         apply_acls_to_version(omd_version)
         print(omd_version)
-        return 0
+        return InstallResult(ExitCode.SUCCESS, omd_version)
 
     try:
         version, edition = validate_version_edition(args.build, args.edition)
         installed_version, pkg_path = core_logic(version, edition, args.force, args.download_only)
     except RuntimeError as e:
         logger.error(e)
-        return 1
+        return InstallResult(ExitCode.ERROR, None)
 
     print(installed_version)
     if args.download_only:
         print(pkg_path)
-    return 0
+    return InstallResult(ExitCode.SUCCESS, installed_version)
+
+
+def run(sys_argv: list[str] | None = None) -> InstallResult:
+    """Run the installation and return the exit code and the resolved OMD version."""
+    parser = create_parser()
+    setup_parser(parser)
+
+    args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
+    return execute(args)
 
 
 def main(sys_argv: list[str] | None = None) -> int:
     with clean_cli_exit():
-        parser = create_parser()
-        setup_parser(parser)
-
-        args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
-        return execute(args)
+        return run(sys_argv).exit_code
