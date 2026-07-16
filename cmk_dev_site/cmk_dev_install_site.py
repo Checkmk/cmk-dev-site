@@ -3,7 +3,7 @@ import logging
 from collections.abc import Iterator
 
 from .cmk_dev_install import Edition
-from .cmk_dev_install import main as cmk_dev_install
+from .cmk_dev_install import run as cmk_dev_install
 from .cmk_dev_site import main as cmk_dev_site
 from .utils.cli import clean_cli_exit
 from .utils.log import get_logger
@@ -109,6 +109,8 @@ def core(
         arg_logging_level = f"-{''.join(['v' * verbose, 'q' * quiet])}"
 
     args_install = list(install_args(version, edition, arg_logging_level))
+    # preview with the user-supplied version; the real site step uses the
+    # version resolved by cmk-dev-install (see below)
     args_site = list(site_args(version, edition, site_distributed, arg_logging_level, site_name))
 
     print(
@@ -119,12 +121,24 @@ def core(
         " ".join(args_site),
     )
 
-    if not dryrun:
-        result = cmk_dev_install(args_install)
-        if result != 0:
-            return result
-        return cmk_dev_site(args_site)
-    return 0
+    if dryrun:
+        return 0
+
+    result, installed_version = cmk_dev_install(args_install)
+    if result != 0:
+        return result
+
+    if installed_version:
+        # cmk-dev-install resolved the version (e.g. "2.3" ->
+        # "2.3.0-2026.07.10.cee", edition included). Forward it so
+        # cmk-dev-site neither asks interactively for a partial version nor
+        # falls back to the system default OMD version.
+        args_site = list(
+            site_args(installed_version, None, site_distributed, arg_logging_level, site_name)
+        )
+        print("cmk-dev-site", " ".join(args_site))
+
+    return cmk_dev_site(args_site)
 
 
 def execute(args: argparse.Namespace) -> int:
