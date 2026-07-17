@@ -260,7 +260,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "checkmk-dev-tools", specifier = ">=2.2.0" },
-    { name = "fastapi" },
+    { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "pyjwt", extras = ["crypto"] },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "requests" },
