@@ -122,12 +122,18 @@ git add ...
 git commit -m "bump version, update dependencies"
 git push origin HEAD:refs/for/main
 ```
-  - test deployed packages by the Gerrit CV Jenkins job from `test.pypi.org`. The extra index URL is required to get those dependencies from `pypi.org` which are not available from `test.pypi.org`
+  - test deployed packages by the Gerrit CV Jenkins job from `test.pypi.org`. Do **not** install with
+    `-i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple`: pip treats both
+    indexes as equally trusted and picks whichever offers the higher version for *every* package in
+    the dependency graph, not just `cmk-dev-site`. Since anyone can publish any package name to
+    test.pypi.org, this is a textbook "dependency confusion" attack surface
+    (we hit a real, if benign, instance of this: a squatted `FASTAPI 1.0` package broke installs until
+    `fastapi` was pinned below `1.0`). Instead, fetch only `cmk-dev-site` itself from test.pypi.org and
+    resolve every dependency from pypi.org alone:
 ```sh
-pip install --no-cache-dir \
-    -i https://test.pypi.org/simple/ \
-    --extra-index-url https://pypi.org/simple \
-    cmk-dev-site==<VERSION_WITH_RC>
+pip download --no-cache-dir --no-deps -d /tmp/rc-wheel \
+    -i https://test.pypi.org/simple/ cmk-dev-site==<VERSION_WITH_RC>
+pip install --no-cache-dir --force-reinstall /tmp/rc-wheel/cmk_dev_site-*.whl
 ```
   - finally merge the changes and let Jenkins create the release tag and deployment to [pypi.org][ref-pypi-cmk-dev-site]
 
