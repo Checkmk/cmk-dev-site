@@ -15,10 +15,10 @@ user:password (please follow the instructions https://wiki.lan.checkmk.net/x/aYU
 """
 
 import argparse
+import asyncio
 import getpass
 import hashlib
 import http.client
-import json
 import logging
 import re
 import shutil
@@ -443,10 +443,13 @@ query_plugins_info=False
     return True
 
 
-@dataclass
-class ArtifactsResult:
-    artifacts: list[str]
-    result: str
+def unify_ci_artifacts_logging() -> None:
+    """Route checkmk-dev-tools log output through our stderr handler."""
+    ci_logger = logging.getLogger("trickkiste.cmk-dev")
+    if not ci_logger.handlers:
+        get_logger("trickkiste.cmk-dev")
+    ci_logger.propagate = False
+    ci_logger.setLevel(logger.getEffectiveLevel())
 
 
 @log()
@@ -462,6 +465,9 @@ def build_install_git_version(
     :param distro_id: The distro ID to build the version for.
     :return: The path to the built package.
     """
+    from cmk_dev.ci_artifacts import (  # pyright: ignore[reportMissingTypeStubs]
+        fetch_artifacts,
+    )
 
     if not validate_jenkins_jobs_ini():
         raise RuntimeError("ERROR: Jenkins jobs ini file is not found")
@@ -472,33 +478,32 @@ def build_install_git_version(
         job_name = "build-cmk-distro-package"
         job_edition = job_edition.removeprefix("old_")
 
-    result = run_command(
-        [
-            sys.executable,
-            "-m",
-            "cmk_dev.ci_artifacts",
-            "fetch",
+    unify_ci_artifacts_logging()
+    result = asyncio.run(
+        fetch_artifacts(
             f"checkmk/{branch}/builders/{job_name}",
-            "--out-dir",
-            "/tmp/",
-            "--no-remove-others",
-            f"--params=DISTRO=ubuntu-{distro_id},EDITION={job_edition},CUSTOM_GIT_REF={commit_hash}",
-        ],
+            params={
+                "DISTRO": f"ubuntu-{distro_id}",
+                "EDITION": job_edition,
+                "CUSTOM_GIT_REF": commit_hash,
+            },
+            out_dir=DOWNLOAD_DIR,
+            no_remove_others=True,
+        )
     )
-    typed_result = ArtifactsResult(**json.loads(result.stdout))
-    if typed_result.result == "FAILURE":
+    if result["result"] == "FAILURE":
         raise RuntimeError("ERROR: Failed to build the version.")
 
     filtered_artifacts = [
         artifact
-        for artifact in typed_result.artifacts
+        for artifact in result["artifacts"]
         if "check-mk" in artifact and artifact.endswith(".deb")
     ]
 
     if not filtered_artifacts:
         raise RuntimeError("ERROR: No artifacts found for the version.")
 
-    return Path("/tmp", filtered_artifacts[0])
+    return DOWNLOAD_DIR / filtered_artifacts[0]
 
 
 @log(show_result=True)

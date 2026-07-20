@@ -209,7 +209,7 @@ wheels = [
 
 [[package]]
 name = "checkmk-dev-tools"
-version = "2.2.0"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "influxdb-client" },
@@ -218,9 +218,9 @@ dependencies = [
     { name = "rich" },
     { name = "trickkiste" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/8d/a6ba30cb5e476f56223cb10d9f41a03ca7ef5bff188bb884f2835aede74b/checkmk_dev_tools-2.2.0.tar.gz", hash = "sha256:9c667d0da9c729cc9e749f9e66eeaf178400e840d95499f38aa9161fd94f3dae", size = 51777, upload-time = "2026-03-25T08:46:46.012Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6a/be/a450c7b97fb64bf0f815856cb8f65a477f5a6b69ea4f093e2d7890aaf6c0/checkmk_dev_tools-2.3.0.tar.gz", hash = "sha256:031060d657a3a2051aaf1f3dc9addba9ff3cced6d44810a963845465b33121a6", size = 52156, upload-time = "2026-06-15T06:21:45.379Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/3f/896e2d62450d9a900b905d33ff4dcdf10b7696525920759e3acc4658b8cd/checkmk_dev_tools-2.2.0-py3-none-any.whl", hash = "sha256:cdf417133338cd670b5ea15c2ecf64bf77a41eff797562a449ed3efc2b0eadf9", size = 54181, upload-time = "2026-03-25T08:46:44.516Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/69/44dc97820907d5183ca0cd260dc4ef1983ffd03426864fdc6538d6baf89c/checkmk_dev_tools-2.3.0-py3-none-any.whl", hash = "sha256:a8fe79adfde370836b3b404ea2b1c3f52a4b6880bbf08f5a063d650723c71eb9", size = 54572, upload-time = "2026-06-15T06:21:43.907Z" },
 ]
 
 [[package]]
@@ -259,7 +259,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "checkmk-dev-tools", specifier = ">=2.2.0" },
+    { name = "checkmk-dev-tools", specifier = ">=2.3.0" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "pyjwt", extras = ["crypto"] },
     { name = "python-multipart", specifier = ">=0.0.20" },
