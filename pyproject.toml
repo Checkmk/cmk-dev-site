@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "requests",
-  "checkmk-dev-tools>=2.2.0",
+  "checkmk-dev-tools>=2.3.0",
   "pyjwt[crypto]",
   "fastapi>=0.115,<1", # upper bound keeps pip off the junk FASTAPI 1.0 squatter on test.pypi.org
   "uvicorn", # ASGI worker
