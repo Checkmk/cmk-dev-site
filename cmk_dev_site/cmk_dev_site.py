@@ -28,6 +28,7 @@ from cmk_dev_site.saas.constants import OIDC_PORT
 
 from .cmk.rest_api import APIClient, CheckmkAPIException, RemoteSiteConnectionConfig
 from .omd import (
+    INSTALLATION_PATH,
     BaseVersion,
     CMKPackage,
     Edition,
@@ -36,6 +37,7 @@ from .omd import (
     VersionWithReleaseDate,
     omd_config_get,
     omd_config_set,
+    omd_hook_exists,
 )
 from .utils import is_port_in_use
 from .utils import run_command as run_command_c
@@ -47,6 +49,7 @@ logger = get_logger(__name__)
 log = generate_log_decorator(logger)
 omd_config_set = log(max_level=logging.DEBUG)(omd_config_set)
 omd_config_get = log(max_level=logging.DEBUG)(omd_config_get)
+omd_hook_exists = log(max_level=logging.DEBUG)(omd_hook_exists)
 
 
 def run_command(
@@ -78,7 +81,8 @@ add_method_logging(log(prefix=_prefix_log_api_client))(APIClient)
 
 GUI_USER = "cmkadmin"
 GUI_PW = "cmk"
-INSTALLATION_PATH = Path("/omd/versions")
+
+MCP_DEFAULTS = (("MCP_SERVER", "on"), ("MCP_TRACE_FORWARD", "on"))
 
 
 class Language(StrEnum):
@@ -174,11 +178,12 @@ class Site:
 
     @log(prefix=_prefix_log_site)
     def configure_site(self, configs: list[tuple[str, str]]) -> None:
+        explicit = dict(configs)
         try:
-            if self.cmk_pkg.base_version == "2.1.0" and "MKEVENTD" not in dict(configs):
+            if self.cmk_pkg.base_version == "2.1.0" and "MKEVENTD" not in explicit:
                 omd_config_set(self.name, "MKEVENTD", "on")
 
-            if "LIVESTATUS_TCP" not in dict(configs):
+            if "LIVESTATUS_TCP" not in explicit:
                 omd_config_set(self.name, "LIVESTATUS_TCP", "on")
 
         except RuntimeError as e:
@@ -188,7 +193,19 @@ class Site:
                 e,
             )
 
-        for key, value in configs:
+        mcp_defaults = [
+            (key, value)
+            for key, value in MCP_DEFAULTS
+            if key not in explicit and omd_hook_exists(self.cmk_pkg.omd_version, key)
+        ]
+        if ("MCP_TRACE_FORWARD", "on") in mcp_defaults:
+            logger.info(
+                "[%s]: Forwarding MCP usage data to Checkmk's telemetry collector "
+                "(mcp-analytics.checkmk.com). Disable with --omd-configs MCP_TRACE_FORWARD=off",
+                colorize(self.name, "blue"),
+            )
+
+        for key, value in [*mcp_defaults, *configs]:
             try:
                 omd_config_set(self.name, key, value)
             except RuntimeError as e:
