@@ -36,6 +36,7 @@ from typing import Any, Literal, NamedTuple
 import requests
 
 from .omd import (
+    INSTALLATION_PATH,
     BaseVersion,
     CMKPackage,
     Edition,
@@ -57,7 +58,6 @@ log = generate_log_decorator(logger)
 
 CREDENTIALS_FILE = Path("~/.cmk-credentials").expanduser()
 CONFIG_PATH = Path("~/.config/jenkins_jobs/jenkins_jobs.ini").expanduser()
-INSTALLATION_PATH = Path("/omd/versions")
 TSBUILD_URL = "https://tstbuilds-artifacts.lan.tribe29.com"
 CMK_DOWNLOAD_URL = "https://download.checkmk.com/checkmk"
 DOWNLOAD_DIR = Path("/tmp")

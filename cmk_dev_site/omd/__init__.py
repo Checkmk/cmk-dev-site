@@ -1,12 +1,16 @@
 import difflib
 import functools
+import os
 import subprocess
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Literal
 
 from typing_extensions import override
+
+INSTALLATION_PATH = Path("/omd/versions")
 
 
 class Edition(StrEnum):
@@ -288,3 +292,10 @@ def omd_config_get(site_name: str, param: str) -> str | None:
         raise RuntimeError(
             f"Could not get configuration {param} for site {site_name}\n{e.stderr}"
         ) from e
+
+
+def omd_hook_exists(
+    omd_version: str, hook_name: str, *, installation_path: Path = INSTALLATION_PATH
+) -> bool:
+    """Whether the installed version ships the given omd config hook."""
+    return os.path.isfile(installation_path / omd_version / "lib/omd/hooks" / hook_name)

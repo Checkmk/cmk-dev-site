@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -10,6 +11,7 @@ from cmk_dev_site.omd import (
     VersionWithPatch,
     VersionWithReleaseCandidate,
     VersionWithReleaseDate,
+    omd_hook_exists,
 )
 
 
@@ -169,3 +171,25 @@ def test_build_download_url() -> None:
     )
     expected_url_date = "https://download.checkmk.com/checkmk/2.3.0-2025.01.01/check-mk-ultimate-2.3.0-2025.01.01_0.noble_amd64.deb"
     assert build_download_url(base_url, pkg_date) == expected_url_date
+
+
+def test_omd_hook_exists_finds_installed_hook(tmp_path: Path) -> None:
+    hooks = tmp_path / "3.0.0.ultimate" / "lib" / "omd" / "hooks"
+    hooks.mkdir(parents=True)
+    (hooks / "MCP_SERVER").write_text("# Alias: Start daemon for the MCP server\n")
+
+    assert omd_hook_exists("3.0.0.ultimate", "MCP_SERVER", installation_path=tmp_path)
+
+
+def test_omd_hook_exists_false_for_missing_hook(tmp_path: Path) -> None:
+    """The community edition ships no cmk-mcp package, so no MCP hooks."""
+    hooks = tmp_path / "3.0.0.community" / "lib" / "omd" / "hooks"
+    hooks.mkdir(parents=True)
+    (hooks / "LIVESTATUS_TCP").write_text("# Alias: Send livestatus data via TCP\n")
+
+    assert not omd_hook_exists("3.0.0.community", "MCP_SERVER", installation_path=tmp_path)
+
+
+def test_omd_hook_exists_false_for_missing_version(tmp_path: Path) -> None:
+    """Checkmk before 3.0.0 has no cmk-mcp package at all."""
+    assert not omd_hook_exists("2.4.0.cee", "MCP_SERVER", installation_path=tmp_path)

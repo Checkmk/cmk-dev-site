@@ -47,6 +47,10 @@ commands. This way you lose some of the possibilities, but only have to
 remember one command. Also prints out the commands that it will execute, so you
 can c&p it.
 
+This shortcut does not forward `--omd-configs`, so opting out of the MCP
+server or of the usage-data forwarding (see `cmk-dev-site` below) requires
+calling `cmk-dev-site` directly.
+
 ### `cmk-dev-install`
 
 Will download the requested package of Checkmk and install said package.
@@ -68,6 +72,12 @@ multiple sites based on the current default omd version (or the version
 specified on the command line).
 
 You might use `-d 1` to create a distributed monitoring with one distributed site.
+
+Where the installed version ships the hooks (currently Checkmk 3.0.0+, every
+edition except community), the site is created with the MCP server enabled at
+`http://localhost/<site>/check_mk/mcp`, and with `MCP_TRACE_FORWARD=on`, which
+forwards MCP usage data to Checkmk. Opt out with `--omd-configs MCP_SERVER=off`
+or `--omd-configs MCP_TRACE_FORWARD=off`.
 
 Please check the built in help (`cmk-dev-site --help`) for all options!
 

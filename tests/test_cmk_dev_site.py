@@ -1,7 +1,17 @@
+import logging
 from datetime import date
 
-from cmk_dev_site.cmk_dev_site import Config
-from cmk_dev_site.omd import BaseVersion, VersionWithPatch, VersionWithReleaseDate
+import pytest
+
+from cmk_dev_site import cmk_dev_site as cmk_dev_site_module
+from cmk_dev_site.cmk_dev_site import Config, Site
+from cmk_dev_site.omd import (
+    BaseVersion,
+    CMKPackage,
+    Edition,
+    VersionWithPatch,
+    VersionWithReleaseDate,
+)
 
 
 def test_default_name_base_version():
@@ -17,3 +27,142 @@ def test_default_name_version_with_patch():
 def test_default_name_version_with_release_date():
     version = VersionWithReleaseDate(BaseVersion(2, 3, 0), date(2025, 1, 1))
     assert Config._default_name(version) == "v230"  # pyright: ignore[reportPrivateUsage]
+
+
+def _ultimate_site() -> Site:
+    """A 3.0.0 ultimate site: a version and edition that ships the MCP hooks."""
+    return Site("v300", CMKPackage(BaseVersion(3, 0, 0), Edition.ULTIMATE))
+
+
+@pytest.fixture(name="config_calls")
+def _config_calls(  # pyright: ignore[reportUnusedFunction]
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[str, str]]:
+    """Record the (key, value) of every `omd config set` the site performs."""
+    calls: list[tuple[str, str]] = []
+
+    def record(_site_name: str, key: str, value: str) -> None:
+        calls.append((key, value))
+
+    monkeypatch.setattr(cmk_dev_site_module, "omd_config_set", record)
+    return calls
+
+
+def _set_hooks_available(
+    monkeypatch: pytest.MonkeyPatch, available: set[str]
+) -> list[tuple[str, str]]:
+    """Stub `omd_hook_exists`, recording each `(omd_version, hook_name)` probe call.
+
+    A hook is reported available exactly when its name is in `available`. The
+    returned list lets a test assert both the recorded calls and, indirectly
+    via `config_calls`, what `configure_site` did with the answer.
+    """
+    calls: list[tuple[str, str]] = []
+
+    def probe(omd_version: str, hook_name: str) -> bool:
+        calls.append((omd_version, hook_name))
+        return hook_name in available
+
+    monkeypatch.setattr(cmk_dev_site_module, "omd_hook_exists", probe)
+    return calls
+
+
+def test_configure_site_enables_mcp_when_hooks_available(
+    monkeypatch: pytest.MonkeyPatch, config_calls: list[tuple[str, str]]
+) -> None:
+    hook_calls = _set_hooks_available(monkeypatch, {"MCP_SERVER", "MCP_TRACE_FORWARD"})
+
+    _ultimate_site().configure_site([])
+
+    assert config_calls == [
+        ("LIVESTATUS_TCP", "on"),
+        ("MCP_SERVER", "on"),
+        ("MCP_TRACE_FORWARD", "on"),
+    ]
+    # The gate must probe the omd version (not e.g. `str(cmk_pkg.version)`, which
+    # would be missing the edition suffix and never match an installed hook path).
+    assert hook_calls == [
+        ("3.0.0.ultimate", "MCP_SERVER"),
+        ("3.0.0.ultimate", "MCP_TRACE_FORWARD"),
+    ]
+
+
+def test_configure_site_skips_mcp_when_hooks_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Setting a hook the installation does not know about makes `omd config
+    set` write to stderr, which surfaces as a warning. Versions before 3.0.0
+    and the community edition must therefore stay untouched and quiet."""
+    unavailable_hooks = {"MCP_SERVER", "MCP_TRACE_FORWARD"}
+    calls: list[tuple[str, str]] = []
+
+    def set_config(_site_name: str, key: str, value: str) -> None:
+        # Mirrors real `omd config set` on an unknown variable: writes to
+        # stderr and exits 0, which `omd_config_set` turns into a RuntimeError.
+        if key in unavailable_hooks:
+            raise RuntimeError(f"No such variable '{key}'")
+        calls.append((key, value))
+
+    monkeypatch.setattr(cmk_dev_site_module, "omd_config_set", set_config)
+    _set_hooks_available(monkeypatch, set())
+
+    with caplog.at_level(logging.WARNING, logger=cmk_dev_site_module.logger.name):
+        _ultimate_site().configure_site([])
+
+    assert calls == [("LIVESTATUS_TCP", "on")]
+    assert caplog.records == []
+
+
+def test_configure_site_enables_only_the_available_mcp_hook(
+    monkeypatch: pytest.MonkeyPatch,
+    config_calls: list[tuple[str, str]],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Hook availability is per hook name, not per version/edition as a whole:
+    MCP_SERVER may ship without MCP_TRACE_FORWARD, or vice versa."""
+    _set_hooks_available(monkeypatch, {"MCP_SERVER"})
+
+    with caplog.at_level(logging.INFO, logger=cmk_dev_site_module.logger.name):
+        _ultimate_site().configure_site([])
+
+    assert ("MCP_SERVER", "on") in config_calls
+    assert all(key != "MCP_TRACE_FORWARD" for key, _ in config_calls)
+    assert "Forwarding MCP usage data" not in caplog.text
+
+
+def test_configure_site_explicit_omd_config_overrides_mcp_default(
+    monkeypatch: pytest.MonkeyPatch, config_calls: list[tuple[str, str]]
+) -> None:
+    _set_hooks_available(monkeypatch, {"MCP_SERVER", "MCP_TRACE_FORWARD"})
+
+    _ultimate_site().configure_site([("MCP_SERVER", "off")])
+
+    assert [value for key, value in config_calls if key == "MCP_SERVER"] == ["off"]
+
+
+def test_configure_site_announces_mcp_usage_data_forwarding(
+    monkeypatch: pytest.MonkeyPatch,
+    config_calls: list[tuple[str, str]],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Forwarding usage data to Checkmk must not be a silent default."""
+    _set_hooks_available(monkeypatch, {"MCP_SERVER", "MCP_TRACE_FORWARD"})
+
+    with caplog.at_level(logging.INFO, logger=cmk_dev_site_module.logger.name):
+        _ultimate_site().configure_site([])
+
+    assert "MCP_TRACE_FORWARD=off" in caplog.text
+
+
+def test_configure_site_no_forwarding_notice_when_set_explicitly(
+    monkeypatch: pytest.MonkeyPatch,
+    config_calls: list[tuple[str, str]],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _set_hooks_available(monkeypatch, {"MCP_SERVER", "MCP_TRACE_FORWARD"})
+
+    with caplog.at_level(logging.INFO, logger=cmk_dev_site_module.logger.name):
+        _ultimate_site().configure_site([("MCP_TRACE_FORWARD", "on")])
+
+    assert "MCP_TRACE_FORWARD=off" not in caplog.text
