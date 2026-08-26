@@ -301,6 +301,9 @@ class Site:
         if message_broker_port:
             config["configuration_connection"]["message_broker_port"] = message_broker_port
 
+        if self.cmk_pkg.base_version >= BaseVersion(3, 0):
+            config["configuration_connection"]["authentication_connections"] = {"type": "disabled"}
+
         if (
             self.cmk_pkg.edition == Edition.OLD_MANAGED
             or self.cmk_pkg.edition == Edition.ULTIMATEMT
