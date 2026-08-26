@@ -45,12 +45,17 @@ class UserSync(TypedDict):
     sync_with_ldap_connections: str
 
 
+class AuthenticationConnections(TypedDict):
+    type: str
+
+
 class ConfigurationConnection(TypedDict):
     enable_replication: bool
     url_of_remote_site: str
     disable_remote_configuration: bool
     ignore_tls_errors: bool
     direct_login_to_web_gui_allowed: bool
+    authentication_connections: AuthenticationConnections
     user_sync: UserSync
     replicate_event_console: bool
     replicate_extensions: bool

@@ -292,6 +292,7 @@ class Site:
                 "disable_remote_configuration": False,
                 "ignore_tls_errors": False,
                 "direct_login_to_web_gui_allowed": True,
+                "authentication_connections": {"type": "disabled"},
                 "user_sync": {"sync_with_ldap_connections": "disabled"},
                 "replicate_event_console": True,
                 "replicate_extensions": False,
