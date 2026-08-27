@@ -93,7 +93,7 @@ def main() {
                 sh(label: "build package", script: """
                     # see comment in pyproject.toml
                     rm -rf dist/*
-                    uv build
+                    uv build --build-constraints build-constraints.txt
                     uv run twine check dist/*
                     python3 -m pip uninstall -y cmk-dev-site
                     python3 -m pip install --pre --user dist/cmk_dev_site-\$(grep -E "^__version__.?=" cmk_dev_site/version.py | cut -d '"' -f 2 | sed 's/-//g')-py3-none-any.whl

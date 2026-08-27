@@ -35,7 +35,7 @@ dev = [
     "pyright>=1.1.400",
     "pytest>=8.3.4",
     "ruff>=0.9.6",
-    "twine>=6.1.0,<7",
+    "twine>=7,<8",
     "snippets2changelog>=1.6.0,<2",
     "types-requests>=2.32.4.20250809",
 ]
