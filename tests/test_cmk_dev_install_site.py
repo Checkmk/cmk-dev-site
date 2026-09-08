@@ -1,9 +1,14 @@
+import argparse
+
 import pytest
 
+from cmk_dev_site import cmk_dev_install as cmk_dev_install_module
 from cmk_dev_site import cmk_dev_install_site
+from cmk_dev_site import cmk_dev_site as cmk_dev_site_module
 from cmk_dev_site.cmk_dev_install import ExitCode, InstallResult
 from cmk_dev_site.cmk_dev_install_site import core, install_args, site_args
 from cmk_dev_site.omd import Edition
+from cmk_dev_site.utils.cli import resolve_argv
 
 
 def test_install_args_forwards_version_and_edition() -> None:
@@ -99,3 +104,38 @@ def test_core_dryrun_does_not_execute(
     # the site command depends on the version cmk-dev-install would resolve,
     # so it cannot be previewed without actually running the install step
     assert "cmk-dev-site" not in out
+
+
+def _parse_install(argv: list[str]) -> argparse.Namespace:
+    parser = cmk_dev_install_module.create_parser()
+    cmk_dev_install_module.setup_parser(parser)
+    return parser.parse_args(argv)
+
+
+def _parse_site(argv: list[str]) -> argparse.Namespace:
+    parser = cmk_dev_site_module.create_parser()
+    cmk_dev_site_module.setup_parser(parser)
+    return parser.parse_args(argv)
+
+
+def test_argv_built_for_a_bare_site_name_parses() -> None:
+    """`cmk-dev-install-site -n foo`: the site name must reach cmk-dev-site
+    only, and cmk-dev-install must accept the resulting empty argv."""
+    install_argv = list(install_args(None, None, ""))
+    site_argv = list(site_args(None, None, 0, "", "foo"))
+
+    assert install_argv == []
+    assert _parse_install(resolve_argv(install_argv, ["-n", "foo"])).build is None
+
+    assert site_argv == ["--name", "foo", "-f"]
+    assert _parse_site(resolve_argv(site_argv, ["-n", "foo"])).name == "foo"
+
+
+def test_argv_built_for_a_resolved_version_parses() -> None:
+    site_argv = list(site_args("2.3.0-2026.07.10.cee", None, 2, "-v", "foo"))
+
+    args = _parse_site(resolve_argv(site_argv, ["-n", "foo"]))
+    assert str(args.version) == "2.3.0-2026.07.10.cee"
+    assert args.name == "foo"
+    assert args.distributed == 2
+    assert args.verbose == 1

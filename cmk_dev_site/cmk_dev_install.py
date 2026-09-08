@@ -49,7 +49,7 @@ from .omd import (
     edition_value_from_package_name,
 )
 from .utils import run_command as run_command_c
-from .utils.cli import clean_cli_exit
+from .utils.cli import clean_cli_exit, resolve_argv
 from .utils.log import colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -1001,7 +1001,7 @@ def run(sys_argv: list[str] | None = None) -> InstallResult:
     parser = create_parser()
     setup_parser(parser)
 
-    args = parser.parse_args(sys_argv or sys.argv[1:], namespace=DevInstallArgs())
+    args = parser.parse_args(resolve_argv(sys_argv, sys.argv[1:]), namespace=DevInstallArgs())
     return execute(args)
 
 

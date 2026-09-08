@@ -21,3 +21,9 @@ def clean_cli_exit() -> Generator[None, None, None]:
     except KeyboardInterrupt:
         print("\n\nInterrupted by user (Ctrl-C).", file=sys.stderr)
         sys.exit(130)
+
+
+def resolve_argv(sys_argv: list[str] | None, fallback: list[str]) -> list[str]:
+    """Return the arguments to parse: `None` means fall back to `fallback`,
+    while an empty list means no arguments at all."""
+    return fallback if sys_argv is None else sys_argv

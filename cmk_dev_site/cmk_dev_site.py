@@ -41,7 +41,7 @@ from .omd import (
 )
 from .utils import is_port_in_use
 from .utils import run_command as run_command_c
-from .utils.cli import clean_cli_exit
+from .utils.cli import clean_cli_exit, resolve_argv
 from .utils.log import add_method_logging, colorize, generate_log_decorator, get_logger
 from .version import __version__
 
@@ -927,5 +927,5 @@ def main(sys_argv: list[str] | None = None) -> int:
     with clean_cli_exit():
         parser: argparse.ArgumentParser = create_parser()
         setup_parser(parser)
-        args = parser.parse_args(sys_argv or sys.argv[1:])
+        args = parser.parse_args(resolve_argv(sys_argv, sys.argv[1:]))
         return execute(args)
