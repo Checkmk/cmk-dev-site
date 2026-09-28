@@ -150,6 +150,8 @@ class Site:
             error_message=f"[{self.name}]: Failed to create site user pass",
         )
 
+        self._append_to_file(Path("/omd/sites", self.name, "etc", "environment"), "CMK_DEV=true\n")
+
     def ensure_auth_works(self) -> None:
         if self.cmk_pkg.edition != Edition.OLD_SAAS and self.cmk_pkg.edition != Edition.CLOUD:
             return
