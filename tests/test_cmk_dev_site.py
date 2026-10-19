@@ -1,10 +1,12 @@
+import json
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
+from unittest.mock import NonCallableMagicMock, create_autospec
 
 import pytest
 
 from cmk_dev_site import cmk_dev_site as cmk_dev_site_module
-from cmk_dev_site.cmk_dev_site import Config, Site
+from cmk_dev_site.cmk_dev_site import Config, Site, handle_site_creation, trial_mode_selection
 from cmk_dev_site.omd import (
     BaseVersion,
     CMKPackage,
@@ -46,6 +48,21 @@ def _config_calls(  # pyright: ignore[reportUnusedFunction]
 
     monkeypatch.setattr(cmk_dev_site_module, "omd_config_set", record)
     return calls
+
+
+@pytest.fixture(name="new_site")
+def _new_site(  # pyright: ignore[reportUnusedFunction]
+    monkeypatch: pytest.MonkeyPatch,
+) -> NonCallableMagicMock:
+    """A mocked site that does not exist yet, recording every step taken on it."""
+
+    def no_existing_site(_site_name: str) -> None:
+        return None
+
+    monkeypatch.setattr(cmk_dev_site_module, "find_version_by_site_name", no_existing_site)
+    site = create_autospec(Site, instance=True)
+    site.name = "v300"
+    return site
 
 
 def _set_hooks_available(
@@ -166,3 +183,22 @@ def test_configure_site_no_forwarding_notice_when_set_explicitly(
         _ultimate_site().configure_site([("MCP_TRACE_FORWARD", "on")])
 
     assert "MCP_TRACE_FORWARD=off" not in caplog.text
+
+
+def test_trial_mode_selection_records_a_trial_selection() -> None:
+    selected_at = datetime(2026, 10, 20, 9, 30, tzinfo=UTC)
+
+    assert json.loads(trial_mode_selection(selected_at)) == {
+        "selection": "trial",
+        "selected_by": "cmkadmin",
+        "selected_at": "2026-10-20T09:30:00+00:00",
+    }
+
+
+def test_handle_site_creation_preselects_trial_mode_after_site_creation(
+    new_site: NonCallableMagicMock,
+) -> None:
+    handle_site_creation(new_site, force=False, configs=[])
+
+    steps = [step for step, _args, _kwargs in new_site.method_calls]
+    assert steps.index("preselect_trial_mode") > steps.index("create_site")
