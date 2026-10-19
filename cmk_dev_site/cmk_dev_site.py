@@ -8,6 +8,7 @@ configuration, proceeding with the next steps. Use the -f option to force a full
 
 import argparse
 import getpass
+import json
 import logging
 import re
 import shutil
@@ -16,7 +17,7 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import (
@@ -152,6 +153,24 @@ class Site:
 
         self._write_to_file(
             Path("/omd/sites", self.name, "etc", "environment"), "CMK_DEV=true\n", append=True
+        )
+
+    @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
+    def preselect_trial_mode(self) -> None:
+        # The format is defined by cmk.licensing.nonfree.trial_mode_selection in Checkmk.
+        selection = {
+            "selection": "trial",
+            "selected_by": GUI_USER,
+            "selected_at": datetime.now(UTC).isoformat(),
+        }
+        self._write_to_file(
+            Path("/omd/sites", self.name, "var", "check_mk", "trial_mode_selection.json"),
+            json.dumps(selection, indent=2) + "\n",
+            append=False,
+        )
+        logger.info(
+            "[%s]: Preselected trial mode, so the trial mode selection gate won't show",
+            colorize(self.name, "blue"),
         )
 
     def ensure_auth_works(self) -> None:
@@ -705,6 +724,7 @@ def handle_site_creation(site: Site, force: bool, configs: list[tuple[str, str]]
         site.delete_site()
         site.ensure_auth_works()
         site.create_site()
+        site.preselect_trial_mode()
         site.configure_site(configs)
 
     else:

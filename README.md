@@ -79,6 +79,9 @@ edition except community), the site is created with the MCP server enabled at
 forwards MCP usage data to Checkmk. Opt out with `--omd-configs MCP_SERVER=off`
 or `--omd-configs MCP_TRACE_FORWARD=off`.
 
+Every site is created with trial mode preselected, so Checkmk does not ask on
+login whether the site is used as a trial or with an existing license.
+
 Please check the built in help (`cmk-dev-site --help`) for all options!
 
 ### Cleanup

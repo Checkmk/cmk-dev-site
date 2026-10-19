@@ -1,10 +1,14 @@
+import json
 import logging
-from datetime import date
+from collections.abc import Sequence
+from datetime import UTC, date, datetime
+from typing import Any
+from unittest.mock import ANY, NonCallableMagicMock, create_autospec
 
 import pytest
 
 from cmk_dev_site import cmk_dev_site as cmk_dev_site_module
-from cmk_dev_site.cmk_dev_site import Config, Site
+from cmk_dev_site.cmk_dev_site import Config, Site, handle_site_creation
 from cmk_dev_site.omd import (
     BaseVersion,
     CMKPackage,
@@ -46,6 +50,21 @@ def _config_calls(  # pyright: ignore[reportUnusedFunction]
 
     monkeypatch.setattr(cmk_dev_site_module, "omd_config_set", record)
     return calls
+
+
+@pytest.fixture(name="new_site")
+def _new_site(  # pyright: ignore[reportUnusedFunction]
+    monkeypatch: pytest.MonkeyPatch,
+) -> NonCallableMagicMock:
+    """A mocked site that does not exist yet, recording every step taken on it."""
+
+    def no_existing_site(_site_name: str) -> None:
+        return None
+
+    monkeypatch.setattr(cmk_dev_site_module, "find_version_by_site_name", no_existing_site)
+    site = create_autospec(Site, instance=True)
+    site.name = "v300"
+    return site
 
 
 def _set_hooks_available(
@@ -166,3 +185,41 @@ def test_configure_site_no_forwarding_notice_when_set_explicitly(
         _ultimate_site().configure_site([("MCP_TRACE_FORWARD", "on")])
 
     assert "MCP_TRACE_FORWARD=off" not in caplog.text
+
+
+def test_preselect_trial_mode_writes_a_trial_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Sequence[str], str]] = []
+
+    def record(args: Sequence[str], **kwargs: Any) -> None:
+        calls.append((args, kwargs["input"]))
+
+    monkeypatch.setattr(cmk_dev_site_module, "run_command", record)
+
+    _ultimate_site().preselect_trial_mode()
+
+    [(args, content)] = calls
+    assert args == [
+        "sudo",
+        "su",
+        "-",
+        "v300",
+        "-c",
+        "tee /omd/sites/v300/var/check_mk/trial_mode_selection.json",
+    ]
+    selection = json.loads(content)
+    assert selection == {"selection": "trial", "selected_by": "cmkadmin", "selected_at": ANY}
+    assert datetime.fromisoformat(selection["selected_at"]).tzinfo == UTC
+
+
+def test_handle_site_creation_preselects_trial_mode_after_site_creation(
+    new_site: NonCallableMagicMock,
+) -> None:
+    handle_site_creation(new_site, force=False, configs=[])
+
+    assert [step for step, _args, _kwargs in new_site.method_calls] == [
+        "delete_site",
+        "ensure_auth_works",
+        "create_site",
+        "preselect_trial_mode",
+        "configure_site",
+    ]
