@@ -173,7 +173,8 @@ class Site:
             append=False,
         )
         logger.info(
-            "[%s]: Preselected trial mode, so the trial mode selection gate won't show",
+            "[%s]: Preselected trial mode, so the trial mode selection gate won't show. "
+            "Show it with --show-trial-mode-selection",
             colorize(self.name, "blue"),
         )
 
@@ -687,6 +688,12 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         help="list of valid key=value pairs for omd config (e.g. LIVESTATUS_TCP=on)",
         default=[],
     )
+    parser.add_argument(
+        "--show-trial-mode-selection",
+        action="store_true",
+        help="ask admins on login whether the site is used as a trial or with a license,\n"
+        "instead of preselecting trial mode",
+    )
 
 
 def parse_config(config: str) -> tuple[str, str]:
@@ -721,14 +728,21 @@ def ensure_sudo() -> None:
     run_command(["sudo", "-v"], error_message="Failed to acquire sudo privileges.")
 
 
-def handle_site_creation(site: Site, force: bool, configs: list[tuple[str, str]]) -> None:
+def handle_site_creation(
+    site: Site,
+    force: bool,
+    configs: list[tuple[str, str]],
+    *,
+    show_trial_mode_selection: bool,
+) -> None:
     existing_site_version = find_version_by_site_name(site.name)
 
     if not existing_site_version or existing_site_version != str(site.cmk_pkg) or force:
         site.delete_site()
         site.ensure_auth_works()
         site.create_site()
-        site.preselect_trial_mode()
+        if not show_trial_mode_selection:
+            site.preselect_trial_mode()
         site.configure_site(configs)
 
     else:
@@ -860,13 +874,23 @@ def core_logic(args: argparse.Namespace) -> None:
     validate_installation(cmk_pkg)
 
     central_site = Site(site_name, cmk_pkg)
-    handle_site_creation(central_site, args.force, args.omd_configs)
+    handle_site_creation(
+        central_site,
+        args.force,
+        args.omd_configs,
+        show_trial_mode_selection=args.show_trial_mode_selection,
+    )
 
     # Distributed setup
     remote_sites: list[Site] = []
     for number in range(1, args.distributed + 1):
         remote_site = Site(f"{central_site.name}_r{number}", config.cmk_pkg, is_remote=True)
-        handle_site_creation(remote_site, config.force, args.omd_configs)
+        handle_site_creation(
+            remote_site,
+            config.force,
+            args.omd_configs,
+            show_trial_mode_selection=args.show_trial_mode_selection,
+        )
         remote_sites.append(remote_site)
 
     if central_site.cmk_pkg.base_version >= BaseVersion(2, 4):

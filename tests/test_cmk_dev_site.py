@@ -198,7 +198,15 @@ def test_trial_mode_selection_records_a_trial_selection() -> None:
 def test_handle_site_creation_preselects_trial_mode_after_site_creation(
     new_site: NonCallableMagicMock,
 ) -> None:
-    handle_site_creation(new_site, force=False, configs=[])
+    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=False)
 
     steps = [step for step, _args, _kwargs in new_site.method_calls]
     assert steps.index("preselect_trial_mode") > steps.index("create_site")
+
+
+def test_handle_site_creation_keeps_the_trial_mode_selection_on_request(
+    new_site: NonCallableMagicMock,
+) -> None:
+    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=True)
+
+    new_site.preselect_trial_mode.assert_not_called()
