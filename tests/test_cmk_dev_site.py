@@ -214,12 +214,25 @@ def test_preselect_trial_mode_writes_a_trial_selection(monkeypatch: pytest.Monke
 def test_handle_site_creation_preselects_trial_mode_after_site_creation(
     new_site: NonCallableMagicMock,
 ) -> None:
-    handle_site_creation(new_site, force=False, configs=[])
+    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=False)
 
     assert [step for step, _args, _kwargs in new_site.method_calls] == [
         "delete_site",
         "ensure_auth_works",
         "create_site",
         "preselect_trial_mode",
+        "configure_site",
+    ]
+
+
+def test_handle_site_creation_keeps_the_trial_mode_selection_on_request(
+    new_site: NonCallableMagicMock,
+) -> None:
+    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=True)
+
+    assert [step for step, _args, _kwargs in new_site.method_calls] == [
+        "delete_site",
+        "ensure_auth_works",
+        "create_site",
         "configure_site",
     ]

@@ -47,9 +47,10 @@ commands. This way you lose some of the possibilities, but only have to
 remember one command. Also prints out the commands that it will execute, so you
 can c&p it.
 
-This shortcut does not forward `--omd-configs`, so opting out of the MCP
-server or of the usage-data forwarding (see `cmk-dev-site` below) requires
-calling `cmk-dev-site` directly.
+This shortcut does not forward `--omd-configs` or `--show-trial-mode-selection`,
+so opting out of the MCP server, of the usage-data forwarding or of the trial
+mode preselection (see `cmk-dev-site` below) requires calling `cmk-dev-site`
+directly.
 
 ### `cmk-dev-install`
 
@@ -80,7 +81,8 @@ forwards MCP usage data to Checkmk. Opt out with `--omd-configs MCP_SERVER=off`
 or `--omd-configs MCP_TRACE_FORWARD=off`.
 
 Every site is created with trial mode preselected, so Checkmk does not ask on
-login whether the site is used as a trial or with an existing license.
+login whether the site is used as a trial or with an existing license. Pass
+`--show-trial-mode-selection` to be asked instead.
 
 Please check the built in help (`cmk-dev-site --help`) for all options!
 
