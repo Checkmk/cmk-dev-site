@@ -150,7 +150,9 @@ class Site:
             error_message=f"[{self.name}]: Failed to create site user pass",
         )
 
-        self._append_to_file(Path("/omd/sites", self.name, "etc", "environment"), "CMK_DEV=true\n")
+        self._write_to_file(
+            Path("/omd/sites", self.name, "etc", "environment"), "CMK_DEV=true\n", append=True
+        )
 
     def ensure_auth_works(self) -> None:
         if self.cmk_pkg.edition != Edition.OLD_SAAS and self.cmk_pkg.edition != Edition.CLOUD:
@@ -315,12 +317,13 @@ class Site:
         return config
 
     @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
-    def _append_to_file(self, file_path: Path, content: str) -> None:
+    def _write_to_file(self, file_path: Path, content: str, *, append: bool) -> None:
+        tee = "tee -a" if append else "tee"
         try:
             run_command(
-                ["sudo", "su", "-", self.name, "-c", f"tee -a {file_path}"],
+                ["sudo", "su", "-", self.name, "-c", f"{tee} {file_path}"],
                 input=content,
-                error_message=f"Failed to append to {file_path}",
+                error_message=f"Failed to write to {file_path}",
             )
         except UnicodeEncodeError as e:
             raise RuntimeError("Invalid content encoding") from e
@@ -345,7 +348,7 @@ class Site:
         ).stdout.decode("utf-8")
 
         # Append certificate to SSL trust store
-        self._append_to_file(ssl_certificates_path, cert_pem)
+        self._write_to_file(ssl_certificates_path, cert_pem, append=True)
 
         # Format certificate to be inserted as a single line
         cert_escaped = cert_pem.strip().replace("\n", "\\n")
@@ -355,7 +358,7 @@ class Site:
         )
 
         # Append certificate trust entry to configuration file
-        self._append_to_file(ca_certificates_path, trust_entry)
+        self._write_to_file(ca_certificates_path, trust_entry, append=True)
 
     @log(prefix=_prefix_log_site)
     def register_host_with_agent(self, host_name: str, gui_user: str, gui_pw: str) -> None:
