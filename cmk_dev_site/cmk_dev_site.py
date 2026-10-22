@@ -361,6 +361,7 @@ class Site:
             "etc/check_mk/multisite.d/wato/ca-certificates.mk",
         )
         ssl_certificates_path = Path("/omd/sites", self.name, "var/ssl/ca-certificates.crt")
+        remote_sites_cas_dir = Path("/omd/sites", self.name, "var/ssl/remote_sites_cas")
 
         cert_der = run_command(
             ("sudo", "openssl", "x509", "-inform", "PEM", "-in", str(cert_path), "-outform", "DER"),
@@ -373,6 +374,14 @@ class Site:
 
         # Append certificate to SSL trust store
         self._write_to_file(ssl_certificates_path, cert_pem, append=True)
+
+        run_command(
+            ["sudo", "su", "-", self.name, "-c", f"mkdir -p {remote_sites_cas_dir}"],
+            error_message=f"Failed to create {remote_sites_cas_dir}",
+        )
+        self._write_to_file(
+            remote_sites_cas_dir / f"{remote_site_name}.pem", cert_pem, append=False
+        )
 
         # Format certificate to be inserted as a single line
         cert_escaped = cert_pem.strip().replace("\n", "\\n")
