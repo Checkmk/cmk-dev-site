@@ -203,6 +203,26 @@ def get_distro_version_info() -> DistroVersionInfo:
     raise RuntimeError("ERROR: Unsupported distribution or missing version info.")
 
 
+DISTRO_FALLBACKS: dict[str, DistroVersionInfo] = {
+    "resolute": DistroVersionInfo(version_id="24.04", version_codename="noble"),
+}
+
+
+def distro_candidates(distro: DistroVersionInfo) -> list[DistroVersionInfo]:
+    if (fallback := DISTRO_FALLBACKS.get(distro.version_codename)) is None:
+        return [distro]
+    return [distro, fallback]
+
+
+def warn_on_distro_fallback(cmk_pkg: CMKPackage, distro: DistroVersionInfo) -> None:
+    if cmk_pkg.distro_codename != distro.version_codename:
+        logger.warning(
+            "No package for %s found, using the %s package instead",
+            distro.version_codename,
+            cmk_pkg.distro_codename,
+        )
+
+
 def redirect_discontinued_minor(base: BaseVersion) -> BaseVersion:
     """Redirect a requested 2.6 version to 3.0.
 
@@ -512,7 +532,7 @@ def find_last_release(
     file_server: FileServer,
     base_version: BaseVersion,
     edition: Edition,
-    distro_codename: str,
+    distro_codenames: Sequence[str],
 ) -> CMKPackage:
     """
     Find the last release date for a version.
@@ -525,15 +545,40 @@ def find_last_release(
     url_version_date.sort(key=lambda p: p[1].release_date, reverse=True)
 
     for url, version_date in url_version_date:
-        pkg = CMKPackage(
-            version=version_date,
-            edition=edition,
-            distro_codename=distro_codename,
-        )
-        if file_server.url_exists(build_download_url(url, pkg)):
-            return pkg
+        for distro_codename in distro_codenames:
+            pkg = CMKPackage(
+                version=version_date,
+                edition=edition,
+                distro_codename=distro_codename,
+            )
+            if file_server.url_exists(build_download_url(url, pkg)):
+                return pkg
 
     raise RuntimeError(f"ERROR: No release found for the version {base_version}")
+
+
+def select_package(
+    file_server: FileServer,
+    download_urls: list[str],
+    version: VersionWithPatch | VersionWithReleaseDate | BaseVersion | VersionWithReleaseCandidate,
+    edition: Edition,
+    distro_codenames: Sequence[str],
+    download_dir: Path = DOWNLOAD_DIR,
+) -> CMKPackage:
+    """
+    Return the package for the first distro codename that is cached or available for download.
+    The last codename is returned without checking, so a missing package is reported on download.
+    """
+    *preferred, last = (
+        CMKPackage(version=version, edition=edition, distro_codename=distro_codename)
+        for distro_codename in distro_codenames
+    )
+    for pkg in preferred:
+        if find_cached_deb(pkg, download_dir) is not None or any(
+            file_server.url_exists(build_download_url(url, pkg)) for url in download_urls
+        ):
+            return pkg
+    return last
 
 
 @log(max_level=logging.DEBUG)
@@ -821,10 +866,21 @@ def core_logic(
     user, password = get_user_pass()
     file_server = FileServer(user=user, password=password)
     distro = get_distro_version_info()
+    distros = distro_candidates(distro)
+    distro_codenames = [d.version_codename for d in distros]
 
     match version:
         case GitVersion(branch=branch, commit_hash=commit_hash):
-            pkg_path = build_install_git_version(branch, commit_hash, edition, distro.version_id)
+            build_distro = distros[-1]
+            if build_distro != distro:
+                logger.warning(
+                    "Building the package for Ubuntu %s, as builds for %s may not be supported",
+                    build_distro.version_id,
+                    distro.version_id,
+                )
+            pkg_path = build_install_git_version(
+                branch, commit_hash, edition, build_distro.version_id
+            )
             install_package(pkg_path)
             # default version will point to the latest installed version
             # we don't have to figure out which git version we just installed
@@ -832,8 +888,9 @@ def core_logic(
 
         case PartialVersion():
             cmk_pkg = find_last_release(
-                download_urls, file_server, version, edition, distro.version_codename
+                download_urls, file_server, version, edition, distro_codenames
             )
+            warn_on_distro_fallback(cmk_pkg, distro)
             cmk_pkg = download_and_install_cmk_pkg(
                 file_server=file_server,
                 urls=download_urls,
@@ -851,11 +908,8 @@ def core_logic(
                     ),
                     release_date=datetime.today().date(),
                 )
-            cmk_pkg = CMKPackage(
-                version=version,
-                edition=edition,
-                distro_codename=distro.version_codename,
-            )
+            cmk_pkg = select_package(file_server, download_urls, version, edition, distro_codenames)
+            warn_on_distro_fallback(cmk_pkg, distro)
             cmk_pkg = download_and_install_cmk_pkg(
                 file_server=file_server,
                 urls=download_urls,
