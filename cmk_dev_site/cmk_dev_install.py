@@ -140,7 +140,7 @@ def _existing_deb_path(value: str) -> Path:
     deb_path = Path(value)
     if not deb_path.is_file():
         raise argparse.ArgumentTypeError(f"deb file does not exist: {deb_path}")
-    return deb_path
+    return deb_path.absolute()
 
 
 def _omd_version_from_deb_path(deb_path: Path) -> str:

@@ -7,14 +7,17 @@ import pytest
 from cmk_dev_site.cmk_dev_install import (
     CMK_DOWNLOAD_URL,
     TSBUILD_URL,
+    DevInstallArgs,
     DistroVersionInfo,
     FolderLinkParser,
+    create_parser,
     distro_candidates,
     find_cached_deb,
     find_last_release,
     parse_version,
     resolve_release_candidate_folder,
     select_package,
+    setup_parser,
     validate_version_edition,
 )
 from cmk_dev_site.omd import (
@@ -326,3 +329,16 @@ def test_resolve_release_candidate_folder_not_found() -> None:
 
     with pytest.raises(RuntimeError, match=r"2\.4\.0p40-rc1 not found"):
         resolve_release_candidate_folder(file_server, TSBUILD_URL, rc)
+
+
+def test_path_argument_is_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "check-mk-pro-2.5.0p1_0.noble_amd64.deb").touch()
+    monkeypatch.chdir(tmp_path)
+    parser = create_parser()
+    setup_parser(parser)
+
+    args = parser.parse_args(
+        ["-p", "./check-mk-pro-2.5.0p1_0.noble_amd64.deb"], namespace=DevInstallArgs()
+    )
+
+    assert args.path == tmp_path / "check-mk-pro-2.5.0p1_0.noble_amd64.deb"
