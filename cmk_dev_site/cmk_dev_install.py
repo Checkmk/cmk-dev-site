@@ -283,8 +283,8 @@ def parse_version(
         )
 
     raise argparse.ArgumentTypeError(
-        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0-YYYY-MM-DD|2.2.0-YYYY.MM.DD|"
-        "2.2|2.2.0-daily|git:<branch>:<commit_hash>'"
+        f"{version!r} doesn't match expected format '2.2.0p23|2.2.0p23-rc1|2.2.0-YYYY-MM-DD|"
+        "2.2.0-YYYY.MM.DD|2.2|2.2.0-daily|git:<branch>:<commit_hash>'"
     )
 
 
@@ -387,6 +387,12 @@ class FileServer:
         return vs_parser.versions
 
     @log(max_level=logging.DEBUG)
+    def list_folders(self, url: str) -> list[str]:
+        link_parser = FolderLinkParser()
+        link_parser.feed(self._get(f"{url}/").text)
+        return link_parser.folders
+
+    @log(max_level=logging.DEBUG)
     def list_versions_with_date(
         self, url: str, base_version: BaseVersion
     ) -> list[VersionWithReleaseDate]:
@@ -432,6 +438,39 @@ class VersionParser(HTMLParser):
                     release_date=datetime.strptime(match.group(2), "%Y.%m.%d").date(),
                 )
             )
+
+
+class FolderLinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.folders: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        href = dict(attrs).get("href")
+        if tag == "a" and href and href.endswith("/") and not href.startswith(("/", "?", ".")):
+            self.folders.append(href.removesuffix("/"))
+
+
+@log()
+def resolve_release_candidate_folder(
+    file_server: FileServer, url: str, version: VersionWithReleaseCandidate
+) -> VersionWithReleaseCandidate:
+    """Find the folder of a release candidate, which may carry a suffix like "+security"."""
+    expected = version.download_folder_name
+    suffixes = sorted(
+        match.group(1) or ""
+        for folder in file_server.list_folders(url)
+        if (match := re.fullmatch(rf"{re.escape(expected)}(\+.+)?", folder))
+    )
+    if not suffixes:
+        raise RuntimeError(f"ERROR: Release candidate folder {expected} not found in {url}")
+    return VersionWithReleaseCandidate(
+        base_version=version.base_version,
+        patch_type=version.patch_type,
+        patch=version.patch,
+        rc=version.rc,
+        folder_suffix=suffixes[0],
+    )
 
 
 @log()
@@ -694,6 +733,7 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
   {colorize("2.4", "green")}: install the latest available daily build
   {colorize("2.4.0-YYYY-MM-DD", "green")} (e.g. 2.4.0-2025-01-30): install specific daily version
   {colorize("2.4.0p23", "green")}: install released patch version
+  {colorize("2.4.0p23-rc1", "green")}: install a release candidate from tstbuilds
   {colorize("git:master:39f57c98f92", "green")}: Build and install from a specific
     branch and commit
 
@@ -908,6 +948,8 @@ def core_logic(
                     ),
                     release_date=datetime.today().date(),
                 )
+            if isinstance(version, VersionWithReleaseCandidate):
+                version = resolve_release_candidate_folder(file_server, TSBUILD_URL, version)
             cmk_pkg = select_package(file_server, download_urls, version, edition, distro_codenames)
             warn_on_distro_fallback(cmk_pkg, distro)
             cmk_pkg = download_and_install_cmk_pkg(

@@ -122,12 +122,18 @@ class VersionWithPatch(BaseVersion):
 
 class VersionWithReleaseCandidate(BaseVersion):
     def __init__(
-        self, base_version: BaseVersion, patch_type: Literal["p", "b"], patch: int, rc: int
+        self,
+        base_version: BaseVersion,
+        patch_type: Literal["p", "b"],
+        patch: int,
+        rc: int,
+        folder_suffix: str = "",
     ):
         self.base_version = base_version
-        self.patch_type = patch_type
+        self.patch_type: Literal["p", "b"] = patch_type
         self.patch = patch
         self.rc = rc
+        self.folder_suffix = folder_suffix
 
     def __str__(self) -> str:
         return f"{self.base_version}{self.patch_type}{self.patch}"
@@ -138,7 +144,7 @@ class VersionWithReleaseCandidate(BaseVersion):
     @property
     @override
     def download_folder_name(self) -> str:
-        return f"{self.base_version}{self.patch_type}{self.patch}-rc{self.rc}"
+        return f"{self.base_version}{self.patch_type}{self.patch}-rc{self.rc}{self.folder_suffix}"
 
 
 class VersionWithReleaseDate(BaseVersion):

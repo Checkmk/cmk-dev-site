@@ -8,10 +8,12 @@ from cmk_dev_site.cmk_dev_install import (
     CMK_DOWNLOAD_URL,
     TSBUILD_URL,
     DistroVersionInfo,
+    FolderLinkParser,
     distro_candidates,
     find_cached_deb,
     find_last_release,
     parse_version,
+    resolve_release_candidate_folder,
     select_package,
     validate_version_edition,
 )
@@ -21,6 +23,7 @@ from cmk_dev_site.omd import (
     Edition,
     PartialVersion,
     VersionWithPatch,
+    VersionWithReleaseCandidate,
     VersionWithReleaseDate,
 )
 
@@ -278,3 +281,48 @@ def test_validate_version_edition_supports_3x() -> None:
         BaseVersion(3, 0, 0),
         Edition.PRO,
     )
+
+
+def test_folder_link_parser_keeps_only_subfolders() -> None:
+    parser = FolderLinkParser()
+    parser.feed(
+        '<a href="?C=N;O=D">Name</a><a href="/">Parent</a>'
+        '<a href="2.4.0p40-rc1+security/">x</a><a href="2.5.0-2026.11.04/">x</a>'
+        '<a href="check-mk-pro-2.5.0_0.noble_amd64.deb">x</a>'
+    )
+    assert parser.folders == ["2.4.0p40-rc1+security", "2.5.0-2026.11.04"]
+
+
+@pytest.mark.parametrize(
+    "folders,expected_folder",
+    [
+        pytest.param(
+            ["2.4.0p40-rc1+security", "2.4.0p40-rc10", "2.4.0p4-rc1"],
+            "2.4.0p40-rc1+security",
+            id="suffixed",
+        ),
+        pytest.param(
+            ["2.4.0p40-rc1+security", "2.4.0p40-rc1"],
+            "2.4.0p40-rc1",
+            id="prefers_plain",
+        ),
+    ],
+)
+def test_resolve_release_candidate_folder(folders: list[str], expected_folder: str) -> None:
+    file_server = MagicMock()
+    file_server.list_folders.return_value = folders
+    rc = VersionWithReleaseCandidate(BaseVersion(2, 4, 0), "p", 40, 1)
+
+    resolved = resolve_release_candidate_folder(file_server, TSBUILD_URL, rc)
+
+    assert resolved.download_folder_name == expected_folder
+    assert str(CMKPackage(resolved, Edition.OLD_ENTERPRISE)) == "2.4.0p40.cee"
+
+
+def test_resolve_release_candidate_folder_not_found() -> None:
+    file_server = MagicMock()
+    file_server.list_folders.return_value = ["2.4.0p40-rc2+security"]
+    rc = VersionWithReleaseCandidate(BaseVersion(2, 4, 0), "p", 40, 1)
+
+    with pytest.raises(RuntimeError, match=r"2\.4\.0p40-rc1 not found"):
+        resolve_release_candidate_folder(file_server, TSBUILD_URL, rc)
