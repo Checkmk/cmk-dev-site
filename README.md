@@ -21,6 +21,13 @@ For updating you can use:
 pipx upgrade cmk-dev-site
 ```
 
+With uv, use `uv tool install cmk-dev-site` and `uv tool upgrade cmk-dev-site`
+instead.
+
+The commands check PyPI for a newer version at most once a day and print a
+warning with the matching upgrade command at the start and the end of a run.
+Set `CMK_DEV_SITE_NO_UPDATE_CHECK=1` to turn this off.
+
 ## Usage
 
 ```

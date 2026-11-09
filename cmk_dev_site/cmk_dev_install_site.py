@@ -7,6 +7,7 @@ from .cmk_dev_install import run as cmk_dev_install
 from .cmk_dev_site import main as cmk_dev_site
 from .utils.cli import clean_cli_exit, report_duration
 from .utils.log import get_logger
+from .utils.update_check import check_for_update
 from .version import __version__
 
 logger = get_logger(__name__)
@@ -169,7 +170,7 @@ def create_parser() -> argparse.ArgumentParser:
 
 
 def main(_sys_argv: list[str] | None = None) -> int:
-    with report_duration(), clean_cli_exit():
+    with check_for_update(), report_duration(), clean_cli_exit():
         parser = create_parser()
         setup_parser(parser)
 

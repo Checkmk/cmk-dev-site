@@ -51,6 +51,7 @@ from .omd import (
 from .utils import run_command as run_command_c
 from .utils.cli import clean_cli_exit, report_duration, resolve_argv
 from .utils.log import colorize, generate_log_decorator, get_logger
+from .utils.update_check import check_for_update
 from .version import __version__
 
 logger = get_logger(__name__)
@@ -1102,5 +1103,5 @@ def run(sys_argv: list[str] | None = None) -> InstallResult:
 
 
 def main(sys_argv: list[str] | None = None) -> int:
-    with report_duration(), clean_cli_exit():
+    with check_for_update(), report_duration(), clean_cli_exit():
         return run(sys_argv).exit_code
