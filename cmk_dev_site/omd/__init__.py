@@ -305,3 +305,10 @@ def omd_hook_exists(
 ) -> bool:
     """Whether the installed version ships the given omd config hook."""
     return os.path.isfile(installation_path / omd_version / "lib/omd/hooks" / hook_name)
+
+
+def omd_init_script_exists(
+    omd_version: str, service_name: str, *, installation_path: Path = INSTALLATION_PATH
+) -> bool:
+    """Whether the installed version ships the init script of the given site service."""
+    return os.path.isfile(installation_path / omd_version / "skel/etc/init.d" / service_name)

@@ -39,6 +39,7 @@ from .omd import (
     omd_config_get,
     omd_config_set,
     omd_hook_exists,
+    omd_init_script_exists,
 )
 from .utils import is_port_in_use
 from .utils import run_command as run_command_c
@@ -51,6 +52,7 @@ log = generate_log_decorator(logger)
 omd_config_set = log(max_level=logging.DEBUG)(omd_config_set)
 omd_config_get = log(max_level=logging.DEBUG)(omd_config_get)
 omd_hook_exists = log(max_level=logging.DEBUG)(omd_hook_exists)
+omd_init_script_exists = log(max_level=logging.DEBUG)(omd_init_script_exists)
 
 
 def run_command(
@@ -163,6 +165,35 @@ class Site:
 
         self._write_to_file(
             Path("/omd/sites", self.name, "etc", "environment"), "CMK_DEV=true\n", append=True
+        )
+
+    @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
+    def enable_ai_assistant_flag(self) -> None:
+        """Turn on Checkmk's experimental AI assistant flag if the version ships the AI assistant.
+
+        It replaces both experimental flags files, so call it only on a site that `omd create`
+        just made. Both files get the same content, so a first activation that moves the staged
+        file over the active one finds no change and does not restart the site.
+        """
+        if not omd_init_script_exists(self.cmk_pkg.omd_version, "ai-control-plane"):
+            logger.info(
+                "[%s]: Checkmk %s ships no ai-control-plane service, so the exp_ai_assistant "
+                "flag stays off",
+                colorize(self.name, "blue"),
+                self.cmk_pkg.omd_version,
+            )
+            return
+        flags_file_content = json.dumps({"exp_ai_assistant": True}, indent=2) + "\n"
+        for file_name in ("release_flag.json", "_pending_release_flag.json"):
+            self._write_to_file(
+                Path("/omd/sites", self.name, "etc", "check_mk", file_name),
+                flags_file_content,
+                append=False,
+            )
+        logger.info(
+            "[%s]: Turned on the exp_ai_assistant flag, so the AI assistant settings show in "
+            "Global settings. Leave it off with --no-ai-assistant",
+            colorize(self.name, "blue"),
         )
 
     @log(prefix=_prefix_log_site, max_level=logging.DEBUG)
@@ -703,6 +734,14 @@ def setup_parser(parser: argparse.ArgumentParser) -> None:
         help="ask admins on login whether the site is used as a trial or with a license,\n"
         "instead of preselecting trial mode",
     )
+    parser.add_argument(
+        "--no-ai-assistant",
+        dest="enable_ai_assistant",
+        action="store_false",
+        help="leave Checkmk's exp_ai_assistant experimental flag off on the central site.\n"
+        "Without the flag, the AI assistant settings stay hidden and the AI assistant\n"
+        "service does not start",
+    )
 
 
 def parse_config(config: str) -> tuple[str, str]:
@@ -743,6 +782,7 @@ def handle_site_creation(
     configs: list[tuple[str, str]],
     *,
     show_trial_mode_selection: bool,
+    enable_ai_assistant: bool,
 ) -> None:
     existing_site_version = find_version_by_site_name(site.name)
 
@@ -752,6 +792,8 @@ def handle_site_creation(
         site.create_site()
         if not show_trial_mode_selection:
             site.preselect_trial_mode()
+        if enable_ai_assistant and not site.is_remote_site:
+            site.enable_ai_assistant_flag()
         site.configure_site(configs)
 
     else:
@@ -888,6 +930,7 @@ def core_logic(args: argparse.Namespace) -> None:
         args.force,
         args.omd_configs,
         show_trial_mode_selection=args.show_trial_mode_selection,
+        enable_ai_assistant=args.enable_ai_assistant,
     )
 
     # Distributed setup
@@ -899,6 +942,7 @@ def core_logic(args: argparse.Namespace) -> None:
             config.force,
             args.omd_configs,
             show_trial_mode_selection=args.show_trial_mode_selection,
+            enable_ai_assistant=args.enable_ai_assistant,
         )
         remote_sites.append(remote_site)
 
