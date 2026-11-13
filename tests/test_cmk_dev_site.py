@@ -6,7 +6,12 @@ from unittest.mock import NonCallableMagicMock, create_autospec
 import pytest
 
 from cmk_dev_site import cmk_dev_site as cmk_dev_site_module
-from cmk_dev_site.cmk_dev_site import Config, Site, handle_site_creation, trial_mode_selection
+from cmk_dev_site.cmk_dev_site import (
+    Config,
+    Site,
+    handle_site_creation,
+    trial_mode_selection,
+)
 from cmk_dev_site.omd import (
     BaseVersion,
     CMKPackage,
@@ -62,6 +67,7 @@ def _new_site(  # pyright: ignore[reportUnusedFunction]
     monkeypatch.setattr(cmk_dev_site_module, "find_version_by_site_name", no_existing_site)
     site = create_autospec(Site, instance=True)
     site.name = "v300"
+    site.is_remote_site = False
     return site
 
 
@@ -198,7 +204,13 @@ def test_trial_mode_selection_records_a_trial_selection() -> None:
 def test_handle_site_creation_preselects_trial_mode_after_site_creation(
     new_site: NonCallableMagicMock,
 ) -> None:
-    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=False)
+    handle_site_creation(
+        new_site,
+        force=False,
+        configs=[],
+        show_trial_mode_selection=False,
+        enable_ai_assistant=False,
+    )
 
     steps = [step for step, _args, _kwargs in new_site.method_calls]
     assert steps.index("preselect_trial_mode") > steps.index("create_site")
@@ -207,6 +219,89 @@ def test_handle_site_creation_preselects_trial_mode_after_site_creation(
 def test_handle_site_creation_keeps_the_trial_mode_selection_on_request(
     new_site: NonCallableMagicMock,
 ) -> None:
-    handle_site_creation(new_site, force=False, configs=[], show_trial_mode_selection=True)
+    handle_site_creation(
+        new_site,
+        force=False,
+        configs=[],
+        show_trial_mode_selection=True,
+        enable_ai_assistant=False,
+    )
 
     new_site.preselect_trial_mode.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("ai_assistant_installed", "written_files"),
+    [
+        pytest.param(True, ["release_flag.json", "_pending_release_flag.json"], id="installed"),
+        pytest.param(False, [], id="not-installed"),
+    ],
+)
+def test_enable_ai_assistant_flag_writes_both_flag_files_only_with_the_ai_assistant(
+    monkeypatch: pytest.MonkeyPatch, ai_assistant_installed: bool, written_files: list[str]
+) -> None:
+    calls: list[tuple[list[str], object]] = []
+
+    def init_script_exists(omd_version: str, service_name: str) -> bool:
+        return ai_assistant_installed and (omd_version, service_name) == (
+            "3.0.0.ultimate",
+            "ai-control-plane",
+        )
+
+    def record(cmd: list[str], *, input: str = "", **_kwargs: object) -> None:
+        calls.append((cmd, json.loads(input)))
+
+    monkeypatch.setattr(cmk_dev_site_module, "omd_init_script_exists", init_script_exists)
+    monkeypatch.setattr(cmk_dev_site_module, "run_command", record)
+
+    _ultimate_site().enable_ai_assistant_flag()
+
+    assert calls == [
+        (
+            ["sudo", "su", "-", "v300", "-c", f"tee /omd/sites/v300/etc/check_mk/{name}"],
+            {"exp_ai_assistant": True},
+        )
+        for name in written_files
+    ]
+
+
+def test_handle_site_creation_turns_on_the_ai_assistant_flag_before_configuring_the_site(
+    new_site: NonCallableMagicMock,
+) -> None:
+    handle_site_creation(
+        new_site,
+        force=False,
+        configs=[],
+        show_trial_mode_selection=False,
+        enable_ai_assistant=True,
+    )
+
+    steps = [step for step, _args, _kwargs in new_site.method_calls]
+    assert (
+        steps.index("create_site")
+        < steps.index("enable_ai_assistant_flag")
+        < steps.index("configure_site")
+    )
+
+
+@pytest.mark.parametrize(
+    ("is_remote_site", "enable_ai_assistant"),
+    [
+        pytest.param(False, False, id="opted-out"),
+        pytest.param(True, True, id="remote-site"),
+    ],
+)
+def test_handle_site_creation_leaves_the_ai_assistant_flag_off(
+    new_site: NonCallableMagicMock, is_remote_site: bool, enable_ai_assistant: bool
+) -> None:
+    new_site.is_remote_site = is_remote_site
+
+    handle_site_creation(
+        new_site,
+        force=False,
+        configs=[],
+        show_trial_mode_selection=False,
+        enable_ai_assistant=enable_ai_assistant,
+    )
+
+    new_site.enable_ai_assistant_flag.assert_not_called()

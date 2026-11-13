@@ -47,10 +47,10 @@ commands. This way you lose some of the possibilities, but only have to
 remember one command. Also prints out the commands that it will execute, so you
 can c&p it.
 
-This shortcut does not forward `--omd-configs` or `--show-trial-mode-selection`,
-so opting out of the MCP server, of the usage-data forwarding or of the trial
-mode preselection (see `cmk-dev-site` below) requires calling `cmk-dev-site`
-directly.
+This shortcut does not forward `--omd-configs`, `--show-trial-mode-selection`
+or `--no-ai-assistant`, so opting out of the MCP server, of the usage-data
+forwarding, of the trial mode preselection or of the AI assistant flag (see
+`cmk-dev-site` below) requires calling `cmk-dev-site` directly.
 
 ### `cmk-dev-install`
 
@@ -83,6 +83,16 @@ or `--omd-configs MCP_TRACE_FORWARD=off`.
 Every site is created with trial mode preselected, so Checkmk does not ask on
 login whether the site is used as a trial or with an existing license. Pass
 `--show-trial-mode-selection` to be asked instead.
+
+Every central site on a Checkmk version that ships the AI assistant (the
+non-free editions of 2.5.0p14 and later, and of 3.0.0 builds from late September
+2026 on) is created with Checkmk's `exp_ai_assistant` experimental flag on, so
+the AI assistant settings show in Global settings. To start the AI assistant
+service, make sure the global setting "Enable the AI assistant" is on, save it,
+and activate changes. On Checkmk versions where that setting is on by default
+(current 3.0.0 builds), the activation at the end of a distributed run (`-d N`)
+already starts the service on the central site. Pass `--no-ai-assistant` to
+leave the flag off.
 
 Please check the built in help (`cmk-dev-site --help`) for all options!
 
